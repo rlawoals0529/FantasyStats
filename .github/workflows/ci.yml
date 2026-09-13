@@ -28,5 +28,10 @@ jobs:
       - run: PLAYWRIGHT_MODULE=$PWD/node_modules/playwright/index.mjs node e2e/contrast-sweep.mjs
       - run: PLAYWRIGHT_MODULE=$PWD/node_modules/playwright/index.mjs node e2e/interaction.mjs
       # A probe that has quietly stopped measuring reports a clean sweep forever, which looks
-      # exactly like a clean page. This requires the planted failure to be caught.
-      - run: "! PLAYWRIGHT_MODULE=$PWD/node_modules/playwright/index.mjs node e2e/contrast-sweep.mjs --self-test"
+      # exactly like a clean page. This plants a 2:1 colour and requires the sweep to find it.
+      #
+      # No leading "!" here, unlike the equivalent in sidereal. That script exits 1 when it
+      # plants a failure; this one exits 0 to mean the self-test passed. Copying the line across
+      # inverted a correct result into a red run, and the first five runs on this repo were all
+      # this and nothing else.
+      - run: PLAYWRIGHT_MODULE=$PWD/node_modules/playwright/index.mjs node e2e/contrast-sweep.mjs --self-test
