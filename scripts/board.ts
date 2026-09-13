@@ -18,6 +18,7 @@
  */
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { asOf, outlookFor, findTies, SOURCE } from "../src/model/index.ts";
+import { walkForward, reliability } from "../src/model/backtest.ts";
 import type { Simulation } from "../src/model/simulate.ts";
 import type { PlayerWeek, Position, Tie } from "../src/shared/player.ts";
 import { GRID_SIZE, GRID_STEP, gridIndex } from "../src/ui/ports.ts";
@@ -68,6 +69,45 @@ function main(argv: readonly string[]): void {
   }
   console.log("  " + sims.length + " outlooks, " + skipped.length + " skipped for want of history");
 
+  const byId = new Map(sims.map((s) => [s.outlook.playerId, s.outlook]));
+  // The scorecard: the model graded against weeks it has since seen.
+  //
+  // Walked forward over the same four seasons, predicting each week from the weeks before it,
+  // then bucketed by what it claimed. A bucket where it said 30 per cent and 11 per cent
+  // happened is a miss and is drawn as one. This panel was empty on the first real board and an
+  // empty scorecard is the one thing this page cannot afford to ship, because grading its own
+  // claims is the entire argument for trusting anything else on it.
+  const graded = walkForward({
+    weeks: league.weeks,
+    touchdowns: league.touchdowns,
+    kickoffs: league.kickoffs,
+  });
+  const rows = reliability(graded).filter((r) => r.count > 0);
+  const scorecard = rows.map((r) => ({ predicted: r.predicted, realised: r.observed, n: r.count }));
+  const claimed = graded.reduce((a, g) => a + g.predictedSpike, 0);
+  const happened = graded.filter((g) => g.actual >= 20).length;
+  const worst = rows.reduce((a, r) => (Math.abs(r.observed - r.predicted) > Math.abs(a.observed - a.predicted) ? r : a));
+  const scorecardNote =
+    "graded on " + graded.length.toLocaleString() + " predictions across " + seasons.length +
+    " seasons: it claimed " + claimed.toFixed(0) + " spikes and " + happened + " happened. Its worst band is " +
+    worst.label + ", where it said " + (worst.predicted * 100).toFixed(0) + " and " +
+    (worst.observed * 100).toFixed(0) + " came in, on " + worst.count + " predictions. " + SOURCE + ".";
+
+  // The regression list, lifted from the reasons the model already attaches rather than
+  // recomputed. A second implementation of the gap is a second thing that can disagree.
+  const effectOf = (id: string, label: string): number =>
+    byId.get(id)?.because.find((r) => r.label === label)?.effect ?? 0;
+  const regression = [...sims]
+    .map((s) => ({
+      playerId: s.outlook.playerId,
+      gap: -effectOf(s.outlook.playerId, "opportunity gap"),
+      touchdownGap: -effectOf(s.outlook.playerId, "touchdown rate"),
+      because: s.outlook.because.filter((r) => r.label === "opportunity gap" || r.label === "touchdown rate"),
+    }))
+    .filter((r) => Math.abs(r.gap) > 0.01 || Math.abs(r.touchdownGap) > 0.01)
+    .sort((a, b) => b.gap + b.touchdownGap - (a.gap + a.touchdownGap))
+    .slice(0, 24);
+
   const top = [...sims].sort((a, b) => b.outlook.spike - a.outlook.spike).slice(0, BOARD_SIZE);
   const lastRow = new Map<string, PlayerWeek>();
   for (const w of league.weeks) if (w.season === season && w.week < week) lastRow.set(w.playerId, w);
@@ -98,10 +138,9 @@ function main(argv: readonly string[]): void {
     // Recomputed on the cut set, so the list the renderer checks itself against is the list it
     // is actually drawing.
     ties: findTies(top) as Tie[],
-    regression: [],
-    scorecard: [],
-    scorecardNote:
-      "built from " + SOURCE + ". The scorecard fills in once this has predicted weeks it has then seen.",
+    regression,
+    scorecard,
+    scorecardNote,
   };
   mkdirSync("public/data", { recursive: true });
   const path = "public/data/board.json";
