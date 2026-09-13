@@ -1,0 +1,8 @@
+{
+  "name": "fantasystats",
+  "compatibility_date": "2026-09-01",
+
+  // No worker at all. The board is a static file and the model runs at build time, so there is
+  // nothing to execute per request: an idle visit costs nothing and a cold start cannot exist.
+  "assets": { "directory": "./dist", "not_found_handling": "single-page-application" }
+}
