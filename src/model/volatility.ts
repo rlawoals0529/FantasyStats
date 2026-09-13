@@ -20,7 +20,12 @@
  */
 
 import type { Position } from "../shared/player.ts";
-import { VOLATILITY_LADDER, type VolatilityTier } from "./calibration.ts";
+import {
+  LEVEL_DRIFT_POINTS,
+  MAX_PREDICTIVE_CV,
+  VOLATILITY_LADDER,
+  type VolatilityTier,
+} from "./calibration.ts";
 
 /**
  * The mean each tier's sd was measured at, recovered as sd / (sd/mean).
@@ -77,7 +82,12 @@ export function tierForMean(mean: number): VolatilityTier {
 }
 
 /**
- * sd of weekly points for a player expected to average `mean`, at `position`.
+ * sd of weekly points for a player who AVERAGES `mean` over the season, at `position`.
+ *
+ * This is the measured ladder and it is a CONDITIONAL spread: the scatter around a player's own
+ * season mean, which is a number nobody has before the season ends. The simulator wants
+ * `predictiveSdFor` below instead. Using this one to answer a predictive question is what made
+ * every distribution too narrow and every spike probability too low.
  *
  * Linear between the tier anchors rather than a step per tier. A step function would hand a
  * player averaging 10.99 an sd of 6.21 and a player averaging 11.01 an sd of 7.13 - a 15 per
@@ -114,4 +124,39 @@ function interpolateSd(mean: number): number {
     }
   }
   return last.sd;
+}
+
+/**
+ * The spread the SIMULATOR uses: how far the actual lands from a centre estimated off n games.
+ *
+ * `sdForMean` above is the measured ladder, and it is the scatter around a player's own season
+ * mean. Nobody knows that number before the season ends. What the model has is an average of the
+ * n games played so far, and the actual outcome scatters around that more widely, for two
+ * reasons that add in variance:
+ *
+ *   ladder^2          the week-to-week variation the ladder measures
+ * + ladder^2 / n      the error in the centre itself, from averaging only n games
+ * + drift^2           the true level moving during the season, which the average lags
+ *
+ * The first two are the standard predictive-variance result and involve no fitted number. The
+ * third is `LEVEL_DRIFT_POINTS`, one league-wide constant, measured and flat across the range.
+ *
+ * Using `sdForMean` here instead was the defect this replaced: on 23,510 real player-weeks every
+ * reliability band under-promised, and the gap widened as the prediction rose. See the long
+ * comment on `LEVEL_DRIFT_POINTS` for the measurements, including the two alternative fixes that
+ * were tried and rejected on the numbers.
+ *
+ * This does NOT reintroduce fitting a spread from a player's own history. The drift term is one
+ * constant, the same for every player in the league, and nothing here reads a player's
+ * residuals. `volatility.test.ts` pins that: two players with identical means and opposite
+ * histories still come out with identical distributions.
+ */
+export function predictiveSdFor(mean: number, position: Position, games: number): number {
+  const conditional = sdForMean(mean, position);
+  if (!(games >= 1) || !Number.isFinite(games)) {
+    throw new Error(`predictive spread needs at least one game of history, got ${games}`);
+  }
+  const predictive = Math.sqrt(conditional * conditional * (1 + 1 / games) + LEVEL_DRIFT_POINTS ** 2);
+  // Capped at the steepest CV the data actually shows. See MAX_PREDICTIVE_CV.
+  return Math.min(predictive, mean * MAX_PREDICTIVE_CV);
 }

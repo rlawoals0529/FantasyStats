@@ -10,9 +10,10 @@ import {
   seedForPlayerWeek,
   simulate,
   simulateMean,
+  TYPICAL_GAMES_OF_HISTORY,
 } from "../../src/model/simulate.ts";
 import { BUST_POINTS, SPIKE_POINTS } from "../../src/shared/player.ts";
-import { sdForMean } from "../../src/model/volatility.ts";
+import { predictiveSdFor, sdForMean } from "../../src/model/volatility.ts";
 
 const BOUNDARY = { season: 2024, week: 9 };
 
@@ -23,6 +24,7 @@ function outcome(overrides: Partial<ExpectedOutcome> = {}): ExpectedOutcome {
     boundary: BOUNDARY,
     mean: 12,
     sdMultiplier: 1,
+    games: TYPICAL_GAMES_OF_HISTORY,
     reasons: [],
     ...overrides,
   };
@@ -97,15 +99,30 @@ describe("the Outlook it builds", () => {
 });
 
 describe("paramsFor", () => {
-  it("takes the mean from the model and the spread from the ladder", () => {
-    const expected = gammaFromMeanSd(12, sdForMean(12, "WR"));
-    expect(paramsFor(outcome({ mean: 12 }))).toEqual(expected);
+  it("takes the centre from the model and the PREDICTIVE spread, not the ladder", () => {
+    // The ladder is the scatter around a season mean nobody knows yet. Drawing with it is what
+    // made every spike probability on the page too low against 23,510 real player-weeks.
+    const games = TYPICAL_GAMES_OF_HISTORY;
+    expect(paramsFor(outcome({ mean: 12 }))).toEqual(
+      gammaFromMeanSd(12, predictiveSdFor(12, "WR", games)),
+    );
+    expect(predictiveSdFor(12, "WR", games)).toBeGreaterThan(sdForMean(12, "WR"));
+  });
+
+  it("widens the spread when the centre rests on fewer games", () => {
+    const sdOf = (p: { shape: number; scale: number }) => Math.sqrt(p.shape) * p.scale;
+    expect(sdOf(paramsFor(outcome({ games: 3 })))).toBeGreaterThan(
+      sdOf(paramsFor(outcome({ games: 14 }))),
+    );
   });
 
   it("applies the Vegas multiplier to the spread and leaves the mean alone", () => {
     const widened = paramsFor(outcome({ mean: 12, sdMultiplier: 1.2 }));
     expect(widened.shape * widened.scale).toBeCloseTo(12, 9);
-    expect(Math.sqrt(widened.shape) * widened.scale).toBeCloseTo(sdForMean(12, "WR") * 1.2, 9);
+    expect(Math.sqrt(widened.shape) * widened.scale).toBeCloseTo(
+      predictiveSdFor(12, "WR", TYPICAL_GAMES_OF_HISTORY) * 1.2,
+      9,
+    );
   });
 
   it("widens the spike as it widens the spread, which is what the Vegas row claims", () => {

@@ -166,7 +166,18 @@ export function pairOverlap(ties: readonly Tie[], a: string, b: string): number 
 export type Estimate = {
   /** Share of drawn matchups you won. */
   readonly p: number;
-  /** Half-width of the 95 per cent interval, in probability units. */
+  /**
+   * The 95 per cent interval, as its two ends rather than as a half-width.
+   *
+   * Ends, because the Wilson interval is ASYMMETRIC and near the extremes it is violently so.
+   * A lineup that has won all forty draws so far has p = 1 with an interval of about 0.83 to
+   * 1.00, and the first version of this returned the larger of the two gaps as a half-width,
+   * which a caller then printed as `p plus or minus 17` - a claim of a 117 per cent chance.
+   * Keeping both ends means no caller can reconstruct a number outside the scale.
+   */
+  readonly lo: number;
+  readonly hi: number;
+  /** Half the interval's width, for the one place a page can honestly print a single figure. */
   readonly halfWidth: number;
   readonly drawn: number;
   /** Share that finished exactly level. Reported, because a tie is not half a win. */
@@ -194,17 +205,18 @@ export function estimate(mine: Float64Array, theirs: Float64Array, drawn: number
     if (d > 0) wins++;
     else if (d === 0) level++;
   }
-  if (n === 0) return { p: 0, halfWidth: 1, drawn: 0, level: 0 };
+  if (n === 0) return { p: 0, lo: 0, hi: 1, halfWidth: 0.5, drawn: 0, level: 0 };
   const p = wins / n;
   const z = 1.959964;
   const denom = 1 + (z * z) / n;
   const centre = (p + (z * z) / (2 * n)) / denom;
   const spread = (z * Math.sqrt((p * (1 - p)) / n + (z * z) / (4 * n * n))) / denom;
-  // Reported against the observed p, not the Wilson centre: the number beside it is the raw
-  // win count, and an interval that does not contain its own point estimate reads as a bug.
-  const lo = Math.max(0, centre - spread);
-  const hi = Math.min(1, centre + spread);
-  return { p, halfWidth: Math.max(hi - p, p - lo), drawn: n, level: level / n };
+  // Widened to contain the observed p as well as the Wilson centre. The two differ at small n,
+  // and an interval that does not contain the figure printed beside it reads as a bug however
+  // defensible the arithmetic is.
+  const lo = Math.max(0, Math.min(p, centre - spread));
+  const hi = Math.min(1, Math.max(p, centre + spread));
+  return { p, lo, hi, halfWidth: (hi - lo) / 2, drawn: n, level: level / n };
 }
 
 /** The margin of each drawn matchup, yours minus theirs, as a density on a symmetric grid. */

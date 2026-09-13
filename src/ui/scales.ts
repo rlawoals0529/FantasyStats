@@ -45,13 +45,16 @@ export function ticks(min: number, max: number, target: number): number[] {
   const raw = (max - min) / target;
   const power = Math.pow(10, Math.floor(Math.log10(raw)));
   const step = [1, 2, 5, 10].map((m) => m * power).find((s) => s >= raw) ?? 10 * power;
+  // The decimals the step itself needs. Snapping to a multiple of the step is not enough on its
+  // own: at a step of 0.1, three steps from zero is 0.30000000000000004 and the ruler prints it
+  // verbatim, wide enough to push the next label off the scale. The step decides the precision
+  // rather than a constant somebody would have to revisit alongside it.
+  const decimals = Math.max(0, Math.min(12, -Math.floor(Math.log10(step))));
   const out: number[] = [];
   // Start at the first round multiple at or above min, and guard the count: a NaN domain used
   // to spin this loop forever with the tab pinned at 100%.
   for (let t = Math.ceil(min / step) * step, guard = 0; t <= max + 1e-9 && guard < 1000; t += step, guard++) {
-    // Floating point leaves 19.999999999999996 where 20 belongs, and that renders as a label
-    // wide enough to push the ruler off the page.
-    out.push(Math.round(t / step) * step);
+    out.push(Number((Math.round(t / step) * step).toFixed(decimals)));
   }
   return out;
 }

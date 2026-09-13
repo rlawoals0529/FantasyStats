@@ -41,12 +41,17 @@ import {
   touchdownLuckTercile,
 } from "./features.ts";
 import type { KickoffFacts } from "./inputs.ts";
-import { sdForMean } from "./volatility.ts";
+import { predictiveSdFor } from "./volatility.ts";
 
 /** Below this spike probability there are no odds worth scaling. See `applyImpliedTotal`. */
 const MIN_SPIKE_RATE_TO_SCALE = 1e-4;
-/** A spike probability the bisection can actually reach without an unbounded spread. */
+/** A spike probability the solver can actually reach without an unbounded spread. */
 const MAX_SPIKE_RATE = 0.95;
+/** The narrowest and widest the Vegas line may make a distribution. See sdMultiplierForSpikeRate. */
+const MIN_VEGAS_SPREAD_MULTIPLIER = 0.6;
+const MAX_VEGAS_SPREAD_MULTIPLIER = 1.6;
+/** Grid resolution of the solver: 1.0 of range in 200 steps is 0.005 of spread. */
+const VEGAS_SOLVER_STEPS = 200;
 
 /** The centre and width the simulator draws from, with the working shown. */
 export type ExpectedOutcome = {
@@ -56,8 +61,15 @@ export type ExpectedOutcome = {
   boundary: AsOfBoundary;
   /** Where the distribution sits, in points. Always at least `MIN_MEAN_POINTS`. */
   mean: number;
-  /** Multiplier on the volatility ladder's sd. 1 unless the Vegas line says otherwise. */
+  /** Multiplier on the spread. 1 unless the Vegas line says otherwise. */
   sdMultiplier: number;
+  /**
+   * Games of history the centre was averaged from.
+   *
+   * Carried because the spread depends on it: a centre off three games is a worse centre than
+   * one off twelve, and the predictive spread has to widen to say so. See `predictiveSdFor`.
+   */
+  games: number;
   /** Every input that moved it, in the order they were applied. */
   reasons: Reason[];
 };
@@ -97,9 +109,9 @@ export function expectedOutcome(
   // Clamped BEFORE the Vegas step, which reads the centre to work out the player's own spike odds.
   const mean = Math.max(MIN_MEAN_POINTS, centre);
 
-  const sdMultiplier = applyImpliedTotal(kickoff, mean, position, reasons);
+  const sdMultiplier = applyImpliedTotal(kickoff, mean, position, games, reasons);
 
-  return { playerId, position, boundary: window.boundary, mean, sdMultiplier, reasons };
+  return { playerId, position, boundary: window.boundary, mean, sdMultiplier, games, reasons };
 }
 
 function applyOpportunityGap(window: AsOfWindow, playerId: string, reasons: Reason[]): number {
@@ -177,6 +189,7 @@ function applyImpliedTotal(
   kickoff: KickoffFacts | null,
   mean: number,
   position: Position,
+  games: number,
   reasons: Reason[],
 ): number {
   const total = kickoff?.impliedTeamTotal ?? null;
@@ -184,7 +197,9 @@ function applyImpliedTotal(
 
   const ratio =
     spikeRateForImpliedTotal(total) / spikeRateForImpliedTotal(IMPLIED_TOTAL_REFERENCE);
-  const ladder = (m: number) => sdForMean(m, position);
+  // The predictive spread, not the ladder: the ratio has to be applied to the distribution the
+  // page actually draws, or the odds it moves are not the odds anyone sees.
+  const ladder = (m: number) => predictiveSdFor(m, position, games);
   const baseSd = ladder(mean);
   const baseRate = gammaSurvival(SPIKE_POINTS, gammaFromMeanSd(mean, baseSd));
 
@@ -230,17 +245,41 @@ export function spikeRateForImpliedTotal(total: number): number {
   return lowRate * Math.pow(highRate / lowRate, t);
 }
 
-/** The sd multiplier that makes a league-average player spike at `targetRate`. Bisection. */
+/**
+ * The sd multiplier that moves a player's spike odds closest to `targetRate`.
+ *
+ * NOT a bisection, and that is the whole point of this comment. P(X >= 20) is NOT monotone in
+ * the spread when the centre is below 20: widening raises the spike rate for a while, then
+ * lowers it again, because a gamma with a large enough CV collapses most of its mass towards
+ * zero and trades the shoulder for a thin tail. A bisection on a non-monotone function does not
+ * fail, it returns a bound, and this one returned the bound: a player centred at 18.9 ppg with
+ * an implied total of 27 came out with a spread of 36.7 points against a ladder of 8.4.
+ *
+ * So it scans a bounded grid and takes the closest, which is robust to the shape of the
+ * function. The bounds are the second half of the fix. The measured Vegas effect is a spike-odds
+ * ratio between 0.59 and 1.70, and no spread outside `MIN_VEGAS_SPREAD_MULTIPLIER` to
+ * `MAX_VEGAS_SPREAD_MULTIPLIER` is something that measurement can justify. A value outside them
+ * is the solver failing, not a finding, so the range is where the answer is looked for.
+ *
+ * `expected.test.ts` sweeps centres and totals together and asserts the result stays in range.
+ * The old test only swept totals, at one centre, in the region where the function happens to be
+ * monotone, which is why this survived.
+ */
 function sdMultiplierForSpikeRate(targetRate: number, mean: number, baseSd: number): number {
-  let lo = 0.25;
-  let hi = 4;
-  for (let i = 0; i < 100; i++) {
-    const mid = (lo + hi) / 2;
-    const rate = gammaSurvival(SPIKE_POINTS, gammaFromMeanSd(mean, baseSd * mid));
-    if (rate < targetRate) lo = mid;
-    else hi = mid;
+  let best = 1;
+  let bestError = Infinity;
+  for (let i = 0; i <= VEGAS_SOLVER_STEPS; i++) {
+    const multiplier =
+      MIN_VEGAS_SPREAD_MULTIPLIER +
+      ((MAX_VEGAS_SPREAD_MULTIPLIER - MIN_VEGAS_SPREAD_MULTIPLIER) * i) / VEGAS_SOLVER_STEPS;
+    const rate = gammaSurvival(SPIKE_POINTS, gammaFromMeanSd(mean, baseSd * multiplier));
+    const error = Math.abs(rate - targetRate);
+    if (error < bestError) {
+      bestError = error;
+      best = multiplier;
+    }
   }
-  return (lo + hi) / 2;
+  return best;
 }
 
 /**

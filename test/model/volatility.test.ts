@@ -3,7 +3,13 @@ import { asOf } from "../../src/model/asof.ts";
 import { VOLATILITY_LADDER } from "../../src/model/calibration.ts";
 import { expectedOutcome } from "../../src/model/expected.ts";
 import { paramsFor } from "../../src/model/simulate.ts";
-import { LADDER_ANCHORS, POSITION_ADJUSTMENT, sdForMean, tierForMean } from "../../src/model/volatility.ts";
+import {
+  LADDER_ANCHORS,
+  POSITION_ADJUSTMENT,
+  predictiveSdFor,
+  sdForMean,
+  tierForMean,
+} from "../../src/model/volatility.ts";
 import type { PlayerWeek, Position } from "../../src/shared/player.ts";
 
 const BOUNDARY = { season: 2024, week: 8 };

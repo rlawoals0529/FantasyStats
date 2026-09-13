@@ -26,6 +26,9 @@ export type Graded = {
   predictedSpike: number;
   /** The distribution's median, which is the figure the page leads a player card with. */
   p50: number;
+  /** The 10th and 90th percentiles, so the scorecard can grade the band and not just the spike. */
+  p10: number;
+  p90: number;
   /** The distribution's centre, which is the RMSE-optimal point estimate of the two. */
   mean: number;
   /** The player's season average to date. The thing to beat. */
@@ -89,6 +92,8 @@ export function walkForward(input: BacktestInput): Graded[] {
         week: boundary.week,
         predictedSpike: sim.outlook.spike,
         p50: sim.outlook.p50,
+        p10: sim.outlook.p10,
+        p90: sim.outlook.p90,
         mean: sim.params.shape * sim.params.scale,
         baseline,
         actual: actual.points,
@@ -242,6 +247,30 @@ export function errorMetrics(
     mae: absolute / graded.length,
     n: graded.length,
   };
+}
+
+export type CoverageRow = { label: string; quantile: number; covered: number; count: number };
+
+/**
+ * How often the actual came in below a quantile the model published.
+ *
+ * A p10 is a claim that the week comes in under it one time in ten. Grading the spike alone
+ * would let a model be right about its headline and wrong about the band printed next to it,
+ * which on a page whose one rule is that no figure appears without its uncertainty is the more
+ * embarrassing of the two failures.
+ */
+export function quantileCoverage(graded: readonly Graded[]): CoverageRow[] {
+  if (graded.length === 0) return [];
+  return [
+    { label: "p10", quantile: 0.1, pick: (g: Graded) => g.p10 },
+    { label: "p50", quantile: 0.5, pick: (g: Graded) => g.p50 },
+    { label: "p90", quantile: 0.9, pick: (g: Graded) => g.p90 },
+  ].map((row) => ({
+    label: row.label,
+    quantile: row.quantile,
+    count: graded.length,
+    covered: average(graded.map((g) => (g.actual <= row.pick(g) ? 1 : 0))),
+  }));
 }
 
 function average(values: readonly number[]): number {

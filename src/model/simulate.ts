@@ -17,7 +17,13 @@ import { DRAWS_PER_PLAYER } from "./calibration.ts";
 import { gammaFromMeanSd, sampleGamma, type GammaParams } from "./distribution.ts";
 import type { ExpectedOutcome } from "./expected.ts";
 import { mulberry32, seedFor } from "./rng.ts";
-import { sdForMean } from "./volatility.ts";
+import { predictiveSdFor } from "./volatility.ts";
+
+/**
+ * Games of history to assume when a caller has not said. Half a season, which is roughly where
+ * the median graded prediction sits. Only `simulateMean` uses it; the real path always knows.
+ */
+export const TYPICAL_GAMES_OF_HISTORY = 8;
 
 /**
  * An `Outlook` plus the things that produced it.
@@ -33,10 +39,35 @@ export type Simulation = {
   draws: Float64Array;
 };
 
-/** The parameters a player-week is drawn with. Mean from `expected`, spread from the ladder. */
+/**
+ * The parameters a player-week is drawn with.
+ *
+ * Centre from `expected`, spread from `predictiveSdFor` and NOT from the ladder directly. The
+ * ladder is the scatter around a player's own season mean; this is a prediction made from an
+ * average of `games` games, and it has to be wider than that by a measured amount. Reaching for
+ * `sdForMean` here is the defect that made every spike probability on the page too low.
+ */
 export function paramsFor(expected: ExpectedOutcome): GammaParams {
-  const sd = sdForMean(expected.mean, expected.position) * expected.sdMultiplier;
+  const sd =
+    predictiveSdFor(expected.mean, expected.position, expected.games) * expected.sdMultiplier;
   return gammaFromMeanSd(expected.mean, sd);
+}
+
+/**
+ * Draw from a set of parameters directly, seeded.
+ *
+ * Exported so the calibration suite can check the sampler against the closed form at the ladder's
+ * own spread, which is not the spread any player is actually simulated with.
+ */
+export function drawFrom(params: GammaParams, seed: number, draws: number): Float64Array {
+  if (!Number.isInteger(draws) || draws < 1) {
+    throw new Error(`draws must be a positive integer, got ${draws}`);
+  }
+  const rng = mulberry32(seed);
+  const values = new Float64Array(draws);
+  for (let i = 0; i < draws; i++) values[i] = sampleGamma(rng, params);
+  values.sort();
+  return values;
 }
 
 /**
@@ -56,10 +87,7 @@ export function simulate(expected: ExpectedOutcome, draws: number = DRAWS_PER_PL
     throw new Error(`draws must be a positive integer, got ${draws}`);
   }
   const params = paramsFor(expected);
-  const rng = mulberry32(seedForPlayerWeek(expected.boundary, expected.playerId));
-  const values = new Float64Array(draws);
-  for (let i = 0; i < draws; i++) values[i] = sampleGamma(rng, params);
-  values.sort();
+  const values = drawFrom(params, seedForPlayerWeek(expected.boundary, expected.playerId), draws);
 
   return {
     params,
@@ -135,9 +163,10 @@ export function simulateMean(
   mean: number,
   boundary: AsOfBoundary,
   draws: number = DRAWS_PER_PLAYER,
+  games: number = TYPICAL_GAMES_OF_HISTORY,
 ): Simulation {
   return simulate(
-    { playerId, position, boundary, mean, sdMultiplier: 1, reasons: [] },
+    { playerId, position, boundary, mean, sdMultiplier: 1, games, reasons: [] },
     draws,
   );
 }

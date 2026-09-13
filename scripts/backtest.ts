@@ -21,6 +21,7 @@ import {
   calibrationError,
   errorMetrics,
   reliability,
+  quantileCoverage,
   spikeLiftByDecile,
   walkForward,
   type Graded,
@@ -255,6 +256,18 @@ export function report(graded: readonly Graded[], lines: (s: string) => void): v
     );
   }
 
+  lines("");
+  lines("QUANTILE COVERAGE  does the band hold as well as the headline");
+  lines("");
+  lines(`  ${padRight("published", 12)}${pad("should cover", 14)}${pad("did cover", 12)}${pad("gap", 9)}`);
+  for (const row of quantileCoverage(graded)) {
+    const gap = row.covered - row.quantile;
+    lines(
+      `  ${padRight(row.label, 12)}${pad(pct(row.quantile, 0), 14)}${pad(pct(row.covered), 12)}` +
+        `${pad(`${gap >= 0 ? "+" : ""}${pct(gap)}`, 9)}`,
+    );
+  }
+
   const baseline = errorMetrics(graded, (g) => g.baseline);
   const modelMean = errorMetrics(graded, (g) => g.mean);
   const modelMedian = errorMetrics(graded, (g) => g.p50);
@@ -278,11 +291,20 @@ export function report(graded: readonly Graded[], lines: (s: string) => void): v
     `  for reference, the measured four-season figures are RMSE ${BASELINE_RMSE} and MAE ${BASELINE_MAE} for the baseline`,
   );
   lines("");
+  const rmseWin = modelMean.rmse < baseline.rmse;
+  const maeWin = modelMean.mae < baseline.mae;
   lines(
-    modelMean.rmse < baseline.rmse
-      ? "  VERDICT: the model's centre edges the baseline here. Treat a small win as noise until it survives a real season: the adjustments total about a point against a typical error of six."
-      : "  VERDICT: the model does not beat the baseline on point error. That is the expected result and it is not a failure - the baseline is close to the ceiling of this category. What the model adds is the spread around that centre and the odds that come out of it, and the calibration table above is what grades those.",
+    rmseWin && maeWin
+      ? "  VERDICT: the model's centre beats the baseline on both measures here. Treat that as noise until it survives a season it has not seen: the adjustments total about a point against a typical error of six."
+      : rmseWin
+        ? "  VERDICT: the model shaves RMSE and gives it back on MAE, which is the same split the four-season probe found. Call that not beating the baseline. The baseline is close to the ceiling of this category and the centre is not where this model earns its keep."
+        : "  VERDICT: the model does not beat the baseline on point error. That is the expected result and it is not a failure - the baseline is close to the ceiling of this category.",
   );
+  lines("");
+  lines(
+    "  What it does add is the spread around that centre and the odds that come out of it, which",
+  );
+  lines("  is what the calibration and coverage tables above grade.");
 }
 
 function signedPct(model: number, baseline: number): string {

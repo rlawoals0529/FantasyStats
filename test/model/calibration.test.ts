@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   DRAWS_PER_PLAYER,
+  LEVEL_DRIFT_POINTS,
+  MAX_PREDICTIVE_CV,
   IMPLIED_TOTAL_HIGH,
   IMPLIED_TOTAL_LOW,
   IMPLIED_TOTAL_REFERENCE,
@@ -16,8 +18,8 @@ import {
 } from "../../src/model/calibration.ts";
 import { gammaFromMeanSd, gammaSurvival } from "../../src/model/distribution.ts";
 import { SPIKE_POINTS } from "../../src/shared/player.ts";
-import { simulateMean } from "../../src/model/simulate.ts";
-import { LADDER_ANCHORS, sdForMean } from "../../src/model/volatility.ts";
+import { drawFrom, rateAtOrAbove, simulateMean, TYPICAL_GAMES_OF_HISTORY } from "../../src/model/simulate.ts";
+import { LADDER_ANCHORS, predictiveSdFor, sdForMean } from "../../src/model/volatility.ts";
 
 /**
  * THE MOST IMPORTANT FILE IN THIS REPO.
@@ -92,15 +94,20 @@ describe("spike rate by mean tier", () => {
    * useless. The standard error is the only tolerance that means the same thing at both ends.
    */
   it("matches the recorded fixture at every tier, drawn at the production draw count", () => {
+    // Drawn at the LADDER's own spread, not the predictive one. This is a check on the sampler
+    // and the family, so it has to use the spread the fixture was computed from; the predictive
+    // spread that players are actually simulated with is checked separately below.
     LADDER_ANCHORS.forEach((anchor, i) => {
       const expected = SPIKE_RATE_BY_TIER_FIXTURE[i];
       expect(expected).toBeDefined();
       if (expected === undefined) return;
-      const sim = simulateMean(`tier-${i}`, "WR", anchor.mean, BOUNDARY, DRAWS_PER_PLAYER);
+      const params = gammaFromMeanSd(anchor.mean, sdForMean(anchor.mean, "WR"));
+      const draws = drawFrom(params, 1000 + i, DRAWS_PER_PLAYER);
+      const rate = rateAtOrAbove(draws, SPIKE_POINTS);
       const standardError = Math.sqrt((expected * (1 - expected)) / DRAWS_PER_PLAYER);
       expect(
-        Math.abs(sim.outlook.spike - expected),
-        `tier ${i} at mean ${anchor.mean.toFixed(2)}: simulated ${(sim.outlook.spike * 100).toFixed(3)}% against a fixture of ${(expected * 100).toFixed(3)}%`,
+        Math.abs(rate - expected),
+        `tier ${i} at mean ${anchor.mean.toFixed(2)}: simulated ${(rate * 100).toFixed(3)}% against a fixture of ${(expected * 100).toFixed(3)}%`,
       ).toBeLessThan(4 * standardError + 5e-4);
     });
   });
@@ -141,8 +148,8 @@ describe("spike rate by mean tier", () => {
     // The spike rate could be right for the wrong reason. This checks the body of the
     // distribution too, which is what p10 and p50 are read off.
     for (const anchor of LADDER_ANCHORS) {
-      const sim = simulateMean("body", "WR", anchor.mean, BOUNDARY, 200000);
-      const draws = Array.from(sim.draws);
+      const params = gammaFromMeanSd(anchor.mean, sdForMean(anchor.mean, "WR"));
+      const draws = Array.from(drawFrom(params, 77, 200000));
       const mean = draws.reduce((a, b) => a + b, 0) / draws.length;
       const sd = Math.sqrt(
         draws.reduce((a, b) => a + (b - mean) ** 2, 0) / draws.length,
@@ -150,6 +157,67 @@ describe("spike rate by mean tier", () => {
       expect(mean).toBeCloseTo(anchor.mean, 1);
       expect(sd).toBeCloseTo(anchor.sd, 0);
     }
+  });
+});
+
+describe("the predictive spread, which is what a player is actually simulated with", () => {
+  it("is wider than the ladder at every tier, because the centre is an estimate", () => {
+    // The defect this replaced. The ladder is the scatter around a player's own season mean and
+    // the simulator does not know that number; it knows an average of n games. Drawing at the
+    // ladder made every reliability band on 23,510 real player-weeks under-promise.
+    for (const anchor of LADDER_ANCHORS) {
+      const ladder = sdForMean(anchor.mean, "WR");
+      const predictive = predictiveSdFor(anchor.mean, "WR", TYPICAL_GAMES_OF_HISTORY);
+      expect(predictive).toBeGreaterThan(ladder);
+      expect(predictive / ladder).toBeLessThan(1.6);
+    }
+  });
+
+  it("is the two derivable terms plus the one measured constant, and nothing else", () => {
+    // Spelled out rather than trusted, because the whole defence of this number is that only
+    // one part of it is fitted. If someone adds a term, this fails.
+    for (const games of [3, 8, 17]) {
+      for (const mean of [4, 9, 14, 19]) {
+        const ladder = sdForMean(mean, "WR");
+        expect(predictiveSdFor(mean, "WR", games)).toBeCloseTo(
+          Math.sqrt(ladder * ladder * (1 + 1 / games) + LEVEL_DRIFT_POINTS ** 2),
+          9,
+        );
+      }
+    }
+  });
+
+  it("narrows towards the ladder as the history grows, but never reaches it", () => {
+    const ladder = sdForMean(12, "WR");
+    let previous = Infinity;
+    for (const games of [3, 5, 8, 12, 17, 40]) {
+      const predictive = predictiveSdFor(12, "WR", games);
+      expect(predictive).toBeLessThan(previous);
+      expect(predictive).toBeGreaterThan(ladder);
+      previous = predictive;
+    }
+    // The floor is the drift term, which does not go away however many games you have.
+    expect(predictiveSdFor(12, "WR", 1e9)).toBeCloseTo(
+      Math.sqrt(ladder * ladder + LEVEL_DRIFT_POINTS ** 2),
+      6,
+    );
+  });
+
+  it("caps the CV at the steepest the data shows, so a bench player is not a lottery ticket", () => {
+    // Below a centre of about 1 ppg there are 28 graded predictions in four seasons. Without the
+    // cap the drift term alone gives a CV of 8.6 at the model floor.
+    for (const mean of [0.25, 0.5, 1]) {
+      expect(predictiveSdFor(mean, "WR", 4) / mean).toBeLessThanOrEqual(MAX_PREDICTIVE_CV + 1e-9);
+    }
+    // And it does not bind anywhere inside the measured range.
+    for (const mean of [2, 4, 8, 12, 18]) {
+      expect(predictiveSdFor(mean, "WR", 4) / mean).toBeLessThan(MAX_PREDICTIVE_CV);
+    }
+  });
+
+  it("refuses a history it cannot compute a spread from", () => {
+    expect(() => predictiveSdFor(10, "WR", 0)).toThrow(/at least one game/);
+    expect(() => predictiveSdFor(10, "WR", Number.NaN)).toThrow(/at least one game/);
   });
 });
 

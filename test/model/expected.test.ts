@@ -164,6 +164,26 @@ describe("the Vegas adjustment", () => {
     }
   });
 
+  it("never widens or narrows beyond what the measured gap can justify, at ANY centre", () => {
+    // The regression test for a solver that used to return its own upper bound. P(spike) is not
+    // monotone in the spread once the centre is near the threshold, so a bisection there does not
+    // fail, it silently returns 4.0 - which it did, giving a player centred at 18.9 ppg a spread
+    // of 36.7 points against a ladder of 8.4. The old test swept totals at ONE centre, in the
+    // region where the function happens to be monotone. This sweeps both.
+    for (const centre of [2, 6, 10, 14, 18, 19.5, 22, 26]) {
+      const window = asOf(BOUNDARY, weeksFor("S", Array.from({ length: 6 }, () => centre)));
+      for (const total of [14, 17, 20, 21.5, 24, 26, 30]) {
+        const outcome = expectedOutcome(window, "S", "WR", kickoff({ playerId: "S", impliedTeamTotal: total }));
+        if (!outcome) throw new Error("expected an outlook");
+        expect(
+          outcome.sdMultiplier,
+          `centre ${centre} at an implied total of ${total} gave a multiplier of ${outcome.sdMultiplier}`,
+        ).toBeGreaterThanOrEqual(0.6);
+        expect(outcome.sdMultiplier).toBeLessThanOrEqual(1.6);
+      }
+    }
+  });
+
   it("carries a points-equivalent whose sign matches the direction of the move", () => {
     expect(reasonNamed(outcomeAt(28).reasons, "implied team total").effect).toBeGreaterThan(0);
     expect(reasonNamed(outcomeAt(15).reasons, "implied team total").effect).toBeLessThan(0);
@@ -171,7 +191,9 @@ describe("the Vegas adjustment", () => {
   });
 
   it("declines to scale spike odds a player does not have, and says why", () => {
-    const bench = asOf(BOUNDARY, weeksFor("B", [0.4, 0.3, 0.5, 0.4]));
+    // At the model floor. The guard is about a spike probability, not a points level, and the
+    // predictive spread is wide enough that a player on 0.4 ppg still has odds worth scaling.
+    const bench = asOf(BOUNDARY, weeksFor("B", [0, 0, 0, 0]));
     const outcome = expectedOutcome(bench, "B", "WR", kickoff({ playerId: "B", impliedTeamTotal: 28 }));
     if (!outcome) throw new Error("expected an outlook");
     expect(outcome.sdMultiplier).toBe(1);

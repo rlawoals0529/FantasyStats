@@ -269,7 +269,7 @@ export function fixtureBoard(seed = 20241015): WeekBoard {
     regression: regressionOf(players, rng),
     scorecard: SCORECARD,
     scorecardNote:
-      "Last week the board claimed 47 spikes at an average stated chance of 24 per cent and got 39. Above a stated 40 per cent it is over-confident by 8 points and has been all season.",
+      "the board claimed 47 spikes at an average stated chance of 24 per cent and got 39. Above a stated 40 per cent it runs 8 points over-confident, and has all season.",
   };
 }
 

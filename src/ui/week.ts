@@ -45,6 +45,8 @@ type Plot = {
   ctx: CanvasRenderingContext2D;
   value: HTMLElement;
   height: number;
+  /** The axis labels, so a run can write real numbers into them once the scale is fixed. */
+  marks: HTMLElement[];
 };
 
 export type Week = {
@@ -135,22 +137,23 @@ export function mountWeek(
   const plot = (key: string, title: string, axis: readonly string[], height: number): Plot => {
     const canvas = el("canvas", { "aria-hidden": "true" });
     const value = el("span", { class: "plot__val" });
+    const marks = axis.map((a) => el("span", { class: "fig", text: a }));
     panelHost.appendChild(
       el("div", { class: "plot", "data-plot": key }, [
         el("div", { class: "plot__head" }, [el("span", { class: "label", text: title }), value]),
         canvas,
-        el("div", { class: "plot__axis" }, axis.map((a) => el("span", { text: a }))),
+        el("div", { class: "plot__axis" }, marks),
       ]),
     );
-    return { canvas, ctx: context2d(canvas), value, height };
+    return { canvas, ctx: context2d(canvas), value, height, marks };
   };
 
   fill(panelHost, []);
-  const cloudPlot = plot("cloud", "every matchup, yours across and theirs up", [], 0);
-  const marginPlot = plot("margin", "the margin, yours minus theirs", [], 132);
+  const cloudPlot = plot("cloud", "yours across, theirs up", ["", ""], 0);
+  const marginPlot = plot("margin", "yours minus theirs", ["", "level", ""], 132);
   const intervalPlot = plot(
     "interval",
-    "the estimate, against how many runs it has seen",
+    "estimate against sample size",
     ["10 runs", "dashed line is a coin flip", `${fmt.count(RUNS)} runs`],
     128,
   );
@@ -252,48 +255,88 @@ export function mountWeek(
     const iw = Math.round(intervalPlot.canvas.getBoundingClientRect().width) || 320;
     drawInterval(intervalPlot.ctx, palette, trace, RUNS, iw, intervalPlot.height);
 
+    const margin = marginSummary(current);
     cloudPlot.value.textContent = `${fmt.count(current.drawn)} of ${fmt.count(RUNS)}`;
-    marginPlot.value.textContent = `${fmt.points(medianMargin(current))} median, ${fmt.pct(est.p)}% above zero`;
+    marginPlot.value.textContent = `${fmt.points(margin.p50)} median, ${fmt.pct(est.p)}% above zero`;
     intervalPlot.value.textContent = fmt.odds(est.p, est.halfWidth);
 
-    renderVerdict(est, done);
+    // Axis ends carry the real numbers, written once the scale is fixed rather than guessed in
+    // the markup. Nothing on this page labels an axis with a number it did not measure.
+    if (cloudPlot.marks[0]) cloudPlot.marks[0].textContent = `${domain[0]} points`;
+    if (cloudPlot.marks[1]) cloudPlot.marks[1].textContent = `${domain[1]}`;
+    if (marginPlot.marks[0]) marginPlot.marks[0].textContent = `\u2212${half}`;
+    if (marginPlot.marks[2]) marginPlot.marks[2].textContent = `+${half}`;
+
+    renderVerdict(est, margin, done);
   }
 
   /**
-   * The median margin, off a capped prefix.
+   * The margin at three quantiles, off a capped prefix.
    *
-   * Capped at four thousand because this sorts, and a sort of ten thousand doubles every frame
-   * is the one thing in this loop that would show up in the frame time. The median of four
-   * thousand draws and of ten thousand agree to well inside a tenth of a point, which is the
-   * resolution the figure is printed at.
+   * Capped at four thousand because this sorts, and a sort of ten thousand once a frame is the
+   * one thing in this loop that would show up in the frame time. Four thousand draws and ten
+   * thousand agree on all three to well inside the tenth of a point they are printed at.
    */
-  const medianMargin = (current: MatchupSimulator): number => {
+  const marginSummary = (current: MatchupSimulator): { p10: number; p50: number; p90: number } => {
     const n = Math.min(current.drawn, 4000);
-    if (n === 0) return 0;
+    if (n === 0) return { p10: 0, p50: 0, p90: 0 };
     const sample = new Float64Array(n);
     for (let i = 0; i < n; i++) sample[i] = current.mine[i]! - current.theirs[i]!;
     sample.sort();
-    return sample[n >> 1]!;
+    const at = (q: number) => sample[Math.min(n - 1, Math.floor(q * n))]!;
+    return { p10: at(0.1), p50: at(0.5), p90: at(0.9) };
   };
 
   /* ---- The verdict -------------------------------------------------------------------- */
 
-  function renderVerdict(est: Estimate, done: boolean): void {
-    const lo = est.p - est.halfWidth;
-    const hi = est.p + est.halfWidth;
-    const called = lo > 0.5 || hi < 0.5;
+  function renderVerdict(
+    est: Estimate,
+    margin: { p10: number; p50: number; p90: number },
+    done: boolean,
+  ): void {
+    // The interval's own ends, not a reconstruction from a half-width: near the extremes the
+    // Wilson interval is lopsided and rebuilding it symmetrically would call a matchup the
+    // real interval does not call.
+    const called = est.lo > 0.5 || est.hi < 0.5;
+    const figure = (value: string, label: string) =>
+      el("div", { class: "verdict__fig" }, [
+        el("b", { class: "fig", text: value }),
+        el("span", { text: label }),
+      ]);
+
     fill(verdict, [
-      el("b", {}, [fmt.pct(est.p), el("i", { text: `in 100, give or take ${Math.max(1, Math.round(est.halfWidth * 100))}` })]),
-      el("p", {
-        text: called
-          ? `Called at ${fmt.count(est.drawn)} runs: the interval clears a coin flip. The ${fmt.pct(1 - est.p - est.level)} in 100 where it does not go your way are the weeks one of theirs goes for thirty, and nothing in four seasons of data says which week that is.`
-          : `Not called. At ${fmt.count(est.drawn)} runs the interval still contains fifty, so the honest answer is a coin flip${done ? ", and more runs will not move it. What is uncertain here is the players, not the simulation." : "."}`,
-      }),
-      el("p", {
-        class: "label",
-        text: `${fmt.count(est.drawn)} runs · ${fmt.pct(est.level)} in 100 finish exactly level · seed fixed, so this picture is the same on every reload`,
-      }),
+      el("div", {}, [
+        el("b", { class: "verdict__odds" }, [
+          fmt.pct(est.p),
+          el("i", { text: `in 100, give or take ${Math.max(1, Math.round(est.halfWidth * 100))}` }),
+        ]),
+        el("p", {
+          text: called
+            ? `Called at ${fmt.count(est.drawn)} runs: the interval clears a coin flip. The ${fmt.pct(1 - est.p)} in 100 where it does not go your way are the weeks one of theirs goes for thirty, and nothing in four seasons of data says which week that is.`
+            : `Not called. At ${fmt.count(est.drawn)} runs the interval still contains fifty, so the honest answer is a coin flip${done ? ", and more runs will not move it. What is uncertain here is the players, not the simulation." : "."}`,
+        }),
+        el("p", {
+          class: "verdict__meta",
+          text: `${fmt.count(est.drawn)} runs, seed fixed. Reload and this is the same picture.`,
+        }),
+      ]),
+      // The same run, said four more ways. A win probability on its own cannot tell you whether
+      // the losses are narrow or catastrophic, and that is the part a lineup decision turns on.
+      el("div", { class: "verdict__figures" }, [
+        figure(fmt.delta(margin.p50), "median margin"),
+        figure(fmt.delta(margin.p10), "tenth percentile"),
+        figure(fmt.delta(margin.p90), "ninetieth"),
+        figure(`${fmt.pct(lossesPast(20, est.drawn))}%`, "lose by 20 or more"),
+      ]),
     ]);
+  }
+
+  /** How often the margin finishes at or past a beating in the wrong direction. */
+  function lossesPast(points: number, drawn: number): number {
+    if (!sim || drawn === 0) return 0;
+    let n = 0;
+    for (let i = 0; i < drawn; i++) if (sim.theirs[i]! - sim.mine[i]! >= points) n++;
+    return n / drawn;
   }
 
   /* ---- The still composition ----------------------------------------------------------- */

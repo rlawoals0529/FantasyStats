@@ -4,6 +4,7 @@ import {
   errorMetrics,
   reliability,
   RELIABILITY_EDGES,
+  quantileCoverage,
   spikeLiftByDecile,
   walkForward,
   type Graded,
@@ -18,6 +19,8 @@ function graded(rows: readonly Partial<Graded>[]): Graded[] {
     week: row.week ?? 9,
     predictedSpike: row.predictedSpike ?? 0,
     p50: row.p50 ?? 0,
+    p10: row.p10 ?? 0,
+    p90: row.p90 ?? 0,
     mean: row.mean ?? 0,
     baseline: row.baseline ?? 0,
     actual: row.actual ?? 0,
@@ -109,6 +112,32 @@ describe("spikeLiftByDecile", () => {
       })),
     );
     expect(spikeLiftByDecile(flat)).toEqual(spikeLiftByDecile([...flat].reverse()));
+  });
+});
+
+describe("quantileCoverage", () => {
+  it("counts how often the actual came in at or below each published quantile", () => {
+    // Four rows, p10 of 5 throughout: one actual at or below it, so 25 per cent coverage
+    // against a published 10 per cent, which is the model over-covering its own floor.
+    const rows = graded([
+      { p10: 5, p50: 10, p90: 20, actual: 4 },
+      { p10: 5, p50: 10, p90: 20, actual: 11 },
+      { p10: 5, p50: 10, p90: 20, actual: 15 },
+      { p10: 5, p50: 10, p90: 20, actual: 25 },
+    ]);
+    const coverage = quantileCoverage(rows);
+    expect(coverage.map((c) => c.label)).toEqual(["p10", "p50", "p90"]);
+    expect(coverage[0]?.covered).toBeCloseTo(0.25, 9);
+    expect(coverage[1]?.covered).toBeCloseTo(0.25, 9);
+    expect(coverage[2]?.covered).toBeCloseTo(0.75, 9);
+  });
+
+  it("is inclusive at the boundary, the same as the spike and bust thresholds", () => {
+    expect(quantileCoverage(graded([{ p10: 5, p50: 5, p90: 5, actual: 5 }]))[0]?.covered).toBe(1);
+  });
+
+  it("is empty on no input rather than dividing by zero", () => {
+    expect(quantileCoverage([])).toEqual([]);
   });
 });
 

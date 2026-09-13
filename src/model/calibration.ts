@@ -51,6 +51,114 @@ export const VOLATILITY_LADDER: readonly VolatilityTier[] = [
   { minMean: 14, maxMean: Infinity, sd: 8.42, sdOverMean: 0.49 },
 ];
 
+
+// ---------------------------------------------------------------------------------------------
+// Conditional spread against predictive spread. Read this before touching the ladder.
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * WHAT THE LADDER ABOVE ACTUALLY MEASURES, AND WHY THE SIMULATOR NEEDS SOMETHING WIDER.
+ *
+ * The ladder is the spread of a player's weekly points around THAT PLAYER'S OWN SEASON MEAN. It
+ * is correct, and it was re-measured on 23,510 real player-weeks from 2022 to 2025 to check,
+ * bucketing each player-season by its own mean and taking the within-player sd:
+ *
+ *     tier          ladder says   measured within-player
+ *     under 5          2.93            2.928
+ *     5 to 8           5.10            5.233
+ *     8 to 11          6.21            6.538
+ *     11 to 14         7.13            7.241
+ *     14 or more       8.42            8.226
+ *
+ * So the spec is not wrong and does not need correcting. What was wrong is what this model did
+ * with it. The simulator does not know a player's season mean: it knows the season average TO
+ * DATE, from a handful of games, and the outcome spreads around THAT estimate more widely than
+ * it spreads around the truth. Feeding a conditional spread into a predictive question makes
+ * every distribution too narrow, which understates both tails, and since the spike is the number
+ * the page leads with, it understated the headline everywhere. Measured on real data before the
+ * fix: every single reliability band under-promised, by +0.8 points of percentage at the bottom
+ * and +12.8 at the top.
+ *
+ * Two things make the predictive spread wider, and only one of them is a measurement:
+ *
+ * 1. The centre is an average of n games, so it carries its own error of ladder / sqrt(n). That
+ *    adds ladder^2 / n to the variance. This is arithmetic, not a fitted constant.
+ * 2. A player's true level MOVES during a season - a role grows, a back-up starts, a knock
+ *    lingers - and the season average to date does not track it. That adds a constant to the
+ *    variance, and it is the one new number here.
+ *
+ * Measured, the second term is remarkably flat across the whole range, which is what justifies
+ * carrying it as a constant in POINTS rather than as a multiplier. Implied residual after
+ * removing the ladder and the 1/n term, by predicted centre, on 2022 and 2023:
+ *
+ *     centre 0-3: 2.69    7-9:  3.46    13-15: 2.95
+ *     centre 3-5: 2.76    9-11: 2.77    15-18: 2.26
+ *     centre 5-7: 2.97   11-13: 3.95    18+:   2.45
+ *
+ * A player's spread is still not a property of the player. This does not reintroduce that: the
+ * term is one league-wide constant, identical for everyone, and nothing here reads a player's
+ * own history.
+ */
+export const LEVEL_DRIFT_POINTS = 2.13;
+
+/**
+ * The within-player sd measured on the real seasons, tier by tier, in the ladder's own order.
+ *
+ * Kept so `recalibration.test.ts` can re-measure it from the committed season files and fail if
+ * the ladder and the data ever part company. This is the check that would have caught the
+ * hypothesis this fix rejected: that the ladder itself was fitted to the wrong quantity.
+ */
+/**
+ * The steepest predictive sd/mean the real data shows, at the bottom of the range.
+ *
+ * Measured on 2022 and 2023: a centre of 1.23 ppg has a residual sd of 2.92, so a CV of 2.36,
+ * and it falls steadily from there - 2.24 at a centre of 1.78, 1.47 at 2.24, 1.09 at 4.50.
+ * Below a centre of about 1 there are 28 graded predictions in four seasons, which is no
+ * measurement at all, and the formula would go on widening: at the model floor of 0.25 ppg the
+ * drift term alone gives a CV of 8.6.
+ *
+ * So the predictive spread is capped here, at slightly above the steepest CV ever measured. The
+ * cap does not bind anywhere inside the measured range. What it stops is the model reporting a
+ * deep bench player as a lottery ticket on the strength of an extrapolation.
+ */
+export const MAX_PREDICTIVE_CV = 2.4;
+
+export const MEASURED_WITHIN_PLAYER_SD: readonly number[] = [2.928, 5.233, 6.538, 7.241, 8.226];
+
+/**
+ * The worst weighted mean calibration gap the model is allowed on held-out seasons.
+ *
+ * Fitted on 2022 and 2023, graded on 2024 and 2025, which none of these constants have seen.
+ *
+ * The measured figures, all on the held-out pair: 3.16 per cent before the predictive spread
+ * went in, 1.25 per cent after it, and 1.73 per cent if `LEVEL_DRIFT_POINTS` is set to zero and
+ * everything else left alone. The bar is 1.6, which sits above the measured value with room for
+ * a data refresh, and BELOW the figure that dropping the one fitted constant produces. That
+ * second property is the one worth protecting: a bar that a model with the constant removed can
+ * still clear is not measuring anything.
+ */
+export const MAX_HELD_OUT_CALIBRATION_GAP = 0.016;
+
+/**
+ * TWO ALTERNATIVES THAT WERE MEASURED AND REJECTED. Both are recorded rather than argued.
+ *
+ * RECENTRING. The as-of average is a biased estimate of the coming week: measured on real data
+ * it runs about a point low in the middle of the range and two and a half points high at the
+ * top, which is textbook regression to the mean. Correcting it with a fitted line changed the
+ * held-out calibration gap from 1.50 to 1.52 per cent, which is nothing, and made MAE worse,
+ * 4.602 to 4.689. So the bias is real, correcting it linearly buys nothing, and it is not done.
+ *
+ * ZERO INFLATION. A real week has a point mass at exactly zero that a gamma cannot produce, and
+ * on real data that mass is large and strongly related to the centre: 38.6 per cent of weeks are
+ * a literal zero for a player the model centres at 2 ppg, falling to 0.0 per cent above 15. With
+ * the blank rate fitted and the total variance held to the measured one, held-out results were:
+ * bust calibration better, 3.62 to 2.51 per cent; spike calibration WORSE, 1.59 to 1.71; and the
+ * p10 coverage it was meant to fix barely moved, 20.6 to 19.9 against a target of 10. Since the
+ * spike is the headline, it is not adopted. If the bust number ever becomes the headline, this
+ * is the change to make, and the measurement above is the case for it.
+ */
+export const REJECTED_ALTERNATIVES = ["recentring the as-of average", "zero inflation"] as const;
+
 /**
  * Residual spread's correlation between halves of a season, once the mean's effect is removed.
  *

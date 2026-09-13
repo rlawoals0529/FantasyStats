@@ -68,7 +68,7 @@ export function mountBoard(root: HTMLElement, week: WeekBoard, onPaint: (ms: num
   const list = need<HTMLUListElement>(root, ".stack__rows");
   const rulerTrack = need(root, ".ruler__track");
   const readout = need(root, ".readout");
-  const numbersHost = need(root, ".numbers");
+  const numbersHost = need(root, ".numbers--wide");
   const controls = need(root, ".controls");
 
   const byId = new Map(week.players.map((p) => [p.outlook.playerId, p]));

@@ -95,7 +95,7 @@ export class CloudPainter {
       // Not equal. The losing half is the ground the winning half is read against, so it is
       // held back; at matched alphas ten thousand dots of each read as one grey cloud and the
       // split the whole plot exists to show disappears into it.
-      ctx.fillStyle = win ? palette.alpha("accent", 0.55) : palette.alpha("dim", 0.2);
+      ctx.fillStyle = win ? palette.alpha("accent", 0.55) : palette.alpha("dim", 0.3);
       for (let i = from; i < drawn; i++) {
         const a = mine[i]!;
         const b = theirs[i]!;
@@ -311,8 +311,8 @@ export function pushTrace(trace: Trace, est: Estimate): void {
   const i = trace.length;
   trace.n[i] = est.drawn;
   trace.p[i] = est.p;
-  trace.lo[i] = Math.max(0, est.p - est.halfWidth);
-  trace.hi[i] = Math.min(1, est.p + est.halfWidth);
+  trace.lo[i] = est.lo;
+  trace.hi[i] = est.hi;
   trace.length = i + 1;
 }
 

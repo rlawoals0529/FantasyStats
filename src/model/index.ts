@@ -30,6 +30,7 @@ export { asOf, isBefore, type AsOfBoundary, type AsOfWindow } from "./asof.ts";
 export {
   calibrationError,
   errorMetrics,
+  quantileCoverage,
   reliability,
   spikeLiftByDecile,
   walkForward,

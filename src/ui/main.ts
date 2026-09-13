@@ -55,6 +55,28 @@ async function boot(): Promise<void> {
   const boardSection = need<HTMLElement>(document, "#board");
   const weekSection = need<HTMLElement>(document, "#week");
 
+  /*
+   * THE PALETTE IS APPLIED BEFORE ANYTHING PAINTS, and the order is the whole point.
+   *
+   * Mounting the picker sets `data-theme` on the root, and until that attribute exists none of
+   * the palettes in `palettes.css` apply, so every `--token` resolves to the empty string.
+   * Built the other way round, every canvas read its colours out of an empty cascade, fell back
+   * to grey, and painted a complete and entirely plausible monochrome page with no error
+   * anywhere. So the picker goes first and its repainters register afterwards.
+   */
+  const repainters: (() => void)[] = [];
+  mountPicker(need<HTMLElement>(document, ".palette"), () => {
+    // Every canvas holds colours copied out of the cascade at paint time, so a palette change
+    // has to be followed by a re-read and a repaint or the pictures stay in the old palette
+    // while everything around them changes. This is why `readPalette` is not cached anywhere.
+    for (const repaint of repainters) repaint();
+  });
+
+  const applied = readPalette(root);
+  if (applied.missing.length > 0) {
+    throw new Error(`spike: the cascade carried no ${applied.missing.join(", ")}`);
+  }
+
   const generated = document.querySelector("[data-generated]");
   if (generated) {
     generated.textContent = `run ${new Date(week.generatedAt).toISOString().slice(0, 16).replace("T", " ")}Z`;
@@ -108,17 +130,7 @@ async function boot(): Promise<void> {
   renderHud();
   setInterval(renderHud, 500);
 
-  /* ---- Palette ------------------------------------------------------------------------- */
-
-  mountPicker(need<HTMLElement>(document, ".palette"), () => {
-    // Every canvas holds colours copied out of the cascade at paint time, so a palette change
-    // has to be followed by a re-read and a repaint or the pictures stay in the old palette
-    // while everything around them changes. This is the entire reason `readPalette` is not
-    // cached anywhere.
-    board.repaint();
-    weekPanel.repaint();
-    paintScorecard();
-  });
+  repainters.push(() => board.repaint(), () => weekPanel.repaint(), paintScorecard);
 
   /*
    * A read-only window on the measurements, for the browser scripts in `e2e/`.

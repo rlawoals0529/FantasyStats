@@ -308,11 +308,27 @@
   height: 24px;
 }
 
+/*
+ * The mark is a pseudo-element, and the container it hangs off has no background at all.
+ *
+ * Drawn the obvious way - a 1px element painted --edge with its label inside - the label's
+ * nearest painted ancestor IS the tick line, and the browser sweep composites exactly that:
+ * a --dim number read against --edge, which measures 2.01:1 on coral-horizon. It is invisible
+ * to the eye, because the label overflows a one pixel box, and it is a real finding, because
+ * an overflowing child is not a thing a contrast measurement can see through. The gate below
+ * was worse: --accent-text label inside an --accent-text line, measured at 1.00:1.
+ */
 .ruler__tick {
   position: absolute;
   top: 0;
   bottom: 0;
   width: 1px;
+}
+
+.ruler__tick::before {
+  content: "";
+  position: absolute;
+  inset: 0;
   background: var(--edge);
 }
 
@@ -335,6 +351,12 @@
   top: 0;
   bottom: -1px;
   width: 1px;
+}
+
+.ruler__gate::before {
+  content: "";
+  position: absolute;
+  inset: 0;
   background: var(--accent-text);
 }
 
@@ -817,9 +839,10 @@
 
 .plot__head {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: baseline;
-  gap: 14px;
+  gap: 2px 14px;
   padding-bottom: 7px;
   border-bottom: 1px solid var(--edge);
   margin-bottom: 9px;
@@ -844,7 +867,9 @@
 .plot__axis {
   display: flex;
   justify-content: space-between;
+  gap: 10px;
   margin-top: 5px;
+  min-height: 14px;
 }
 
 .plot__axis span {
@@ -857,13 +882,70 @@
 
 /* The verdict. The biggest figure on the page after the headline, and it never appears without
    the interval beside it, which is `format.ts`'s job to enforce. */
+/* Two columns where there is room: the figure and the sentence on the left, and the same run
+   said four more ways on the right. A win probability alone cannot say whether the losses are
+   narrow or catastrophic, and that is what a lineup decision actually turns on. */
 .verdict {
   margin-top: 26px;
   padding-top: 22px;
   border-top: 1px solid var(--edge);
+  display: grid;
+  gap: 28px;
+  grid-template-columns: 1fr;
+  align-items: start;
 }
 
-.verdict b {
+@media (min-width: 860px) {
+  .verdict {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 380px);
+    gap: 48px;
+  }
+}
+
+.verdict__figures {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--edge);
+  border: 1px solid var(--edge);
+}
+
+.verdict__fig {
+  background: var(--bg);
+  padding: 13px 14px 14px;
+}
+
+.verdict__fig b {
+  display: block;
+  font-size: 21px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+  margin-bottom: 5px;
+}
+
+.verdict__fig span {
+  display: block;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dim);
+  line-height: 1.5;
+}
+
+/* A sentence, not a label. Uppercase letterspaced mono is for three words, and a run of it at
+   sentence length is slower to read than the thing it is annotating. */
+.verdict__meta {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  color: var(--dim);
+  margin-top: 12px;
+}
+
+/* Scoped to the class, not to every b inside .verdict. Unscoped, it also caught the four
+   summary figures beside it and set them at sixty-two pixels each. */
+.verdict__odds {
   display: block;
   font-family: var(--font-display, inherit);
   font-size: clamp(40px, 7vw, 62px);
@@ -874,7 +956,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-.verdict b i {
+.verdict__odds i {
   font-style: normal;
   font-size: 0.3em;
   color: var(--dim);
@@ -1021,11 +1103,16 @@
   pointer-events: none;
 }
 
+/* Wraps rather than clips. At 400px the four readouts are 630px of content, and with nowrap
+   the last two sat outside the viewport: hidden by the overflow rule, so it looked fine, while
+   half the instrument's own report was simply gone. Wrapping upward costs a row of height on a
+   phone and keeps every figure on screen. */
 .gauge__hud {
   position: absolute;
   left: 0;
   bottom: 0;
   display: flex;
+  flex-wrap: wrap;
   gap: 0;
   border-top: 1px solid var(--edge);
   border-right: 1px solid var(--edge);
@@ -1044,6 +1131,15 @@
 
 .gauge__cell:first-child {
   border-left: 0;
+}
+
+/* On a wrapped row the first cell of each row would otherwise keep its divider, which reads as
+   a stray mark. One rule rather than nth-child arithmetic that breaks when a cell is added. */
+@media (max-width: 620px) {
+  .gauge__cell {
+    border-left: 0;
+    border-right: 1px solid var(--edge);
+  }
 }
 
 .gauge__cell b {
@@ -1174,14 +1270,17 @@
   margin-bottom: 9px;
 }
 
+/* nowrap, because "1,000 runs" wrapping while "100 runs" does not puts the four figures
+   below them on two different baselines and the comparison stops being a comparison. */
 .ladder__n {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-variant-numeric: tabular-nums;
   font-size: 10px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--dim);
   display: block;
+  white-space: nowrap;
 }
 
 .ladder__p {

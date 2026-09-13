@@ -240,7 +240,7 @@ export function drawStack(
    * over.
    */
   if (selected) {
-    const shared = palette.alpha("accent-2", 0.34);
+    const shared = palette.alpha("accent-2", 0.28);
     const echo = palette.hex["accent-2"];
     for (let i = 0; i < lanes.length; i++) {
       const lane = lanes[i]!;

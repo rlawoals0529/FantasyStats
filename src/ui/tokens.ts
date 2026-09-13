@@ -58,6 +58,19 @@ export type Palette = {
   mix(a: TokenName, b: TokenName, t: number): string;
   /** Which way this palette paints, so a renderer can pick the right direction to lighten. */
   readonly dark: boolean;
+  /**
+   * Tokens the cascade had nothing for, so the fallback grey was used instead.
+   *
+   * This exists because of a real bug that cost an afternoon and left no error behind. The
+   * board mounted and read its palette before the picker had set `data-theme`, at which point
+   * every custom property resolved to the empty string, every token fell back to mid grey, and
+   * the board painted a complete, plausible, entirely monochrome picture. Nothing threw,
+   * nothing logged, and the only symptom was that the accent fill was not accent-coloured.
+   *
+   * A paint must not throw, so the fallback stays. But the caller can now ask, and `main.ts`
+   * asks once at boot and refuses to start on a non-empty list.
+   */
+  readonly missing: readonly TokenName[];
 };
 
 /** The scratch context that normalises a colour. One per document, created on first use. */
@@ -101,10 +114,12 @@ export function readPalette(host: Element = document.documentElement): Palette {
   const cs = getComputedStyle(host);
   const rgb = {} as Record<TokenName, [number, number, number]>;
   const hex = {} as Record<TokenName, string>;
+  const missing: TokenName[] = [];
   for (const name of NAMES) {
     // The fallback is a mid grey rather than black or white: on a palette that somehow lost a
     // token, mid grey is visible against both grounds, so the gap shows up instead of hiding.
-    const raw = cs.getPropertyValue(`--${name}`);
+    const raw = cs.getPropertyValue(`--${name}`).trim();
+    if (!raw) missing.push(name);
     const triple = normalise(raw, "#808080");
     rgb[name] = triple;
     hex[name] = rgbString(triple);
@@ -117,6 +132,7 @@ export function readPalette(host: Element = document.documentElement): Palette {
   return {
     hex,
     dark,
+    missing,
     alpha(name, a) {
       const [rr, gg, bb] = rgb[name];
       return `rgba(${rr}, ${gg}, ${bb}, ${Math.max(0, Math.min(1, a))})`;
