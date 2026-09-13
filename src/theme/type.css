@@ -1,0 +1,28 @@
+/* Vendored from yozora/css/type-ink-study.css. Refresh with `node scripts/vendor.mjs` there,
+   never edit here. */
+/* Ink Study - Fraunces + Chivo.
+
+   For something that teaches. Fraunces has a wonk axis and real optical sizing, so at
+   display size it looks drawn rather than generated, and that is the whole reason to use
+   it: a page explaining how something works should not look like it was assembled.
+
+   Chivo underneath is a grotesque with plain, unambiguous figures, which matters when the
+   text is about counting things.
+
+   Load: https://fonts.googleapis.com/css2?family=Chivo:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&display=swap */
+:root {
+  --font-display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --font-body: "Chivo", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --display-weight: 600;
+  /* Fraunces is already tightly fitted at display sizes; pulling it in further closes
+     the counters. */
+  --display-tracking: 0px;
+  --display-leading: 1.04;
+}
+
+/* Fraunces carries its character on two variable axes. SOFT rounds the terminals and
+   WONK swaps in the angled, less regular forms. Both are off by default, which is the
+   version that looks like every other serif. */
+h1, .display { font-variation-settings: "SOFT" 30, "WONK" 1; }
