@@ -1,52 +1,63 @@
 # FantasyStats
 
-Fantasy football, told as odds rather than as a number.
+Fantasy football as odds, graded against what actually happened.
 
 ## Why there are no projections here
 
-Four seasons of play, 24,616 player-weeks, every feature computed strictly as-of the prior
-week. A model using past points, target share, weighted opportunity and the Vegas line,
-trained on 2022 to 2024 and tested on 2025:
+Before building anything I checked whether a model could beat the simplest possible guess: a
+player's own season average so far. Over four seasons of play, with every feature computed
+strictly from the weeks before the one being predicted, it could not. The typical weekly error
+is close to the size of a typical week's score, which is the honest state of this whole
+category.
 
-| | RMSE | MAE | r |
-|---|---|---|---|
-| The player's own season average to date | 6.208 | 4.373 | 0.597 |
-| The model | 6.119 | **4.426** | 0.602 |
-
-It does not beat the baseline. RMSE improves by 1.4 per cent and MAE gets worse. The typical
-weekly error is **6.2 points against a mean of about 7**, which is the honest state of this
-whole category: everyone's error is roughly the size of the thing they are predicting.
-
-So this does not sell you a number. It tells you the odds, and it shows you how its odds have
-held up.
+So this does not sell you a number. There is no edge in the number.
 
 ## What it does instead
 
-- **Distributions, notpoint estimates.** A player is a shape. The width is the information.
-- **It refuses to rank what it cannot separate.** At a weekly coefficient of variation of 0.82,
-  the seventh and eleventh ranked players are routinely the same player, and saying so is more
-  useful than sorting them.
-- **A regression list**, from production measured against what that player's opportunity
-  usually buys. Quartile effects run from +0.95 to -1.53 points per game.
-- **Spike probability**, because about 40 per cent of a player's season arrives in their best
-  three weeks. The question worth answering is not how many points, it is what are the odds
-  this is one of the big ones.
-- **Its own scorecard.** Every claim is graded afterwards, publicly, including the wrong ones.
+**Every player is a distribution, not a point.** The width is the information, and the page
+draws it. Two shapes side by side tell you more than two rankings ever could.
+
+**It refuses to rank what it cannot separate.** Week to week scoring is volatile enough that
+players a few places apart on any ranking list are routinely indistinguishable. Saying so is
+more useful than sorting them and pretending the order means something.
+
+**The headline is the chance of a big week**, not a projected total, because a fantasy season is
+decided by a handful of outlier weeks rather than by averages.
+
+**A buy-low and sell-high list**, from what a player is producing measured against what their
+opportunity usually buys. Outperforming your opportunity tends not to last.
+
+**A scorecard.** The page grades its own claims against what happened, including the band where
+it is least accurate. Nobody else in this category publishes that.
 
 ## Things that sound true and are not
 
-Each of these would have shipped as a feature if nobody had checked.
+Each of these is worth knowing because they are repeated constantly and the data does not
+support them:
 
-| Tempting | Measured |
-|---|---|
-| Draft on opportunity, not production | Opportunity predicts worse. 0.634 against 0.780 |
-| Some players are boom-bust by nature | Residual volatility r = **0.152** once the mean is removed. It is about 85 per cent noise |
-| Next Gen Stats gives an edge | Separation r = 0.072 with the week's points, and it is not even a stable trait |
-| Questionable players underperform | Raw, they **outscore** unlisted players. The designation only costs points once you control for who gets listed |
+- **Draft on opportunity rather than production.** Opportunity is the stickier signal, but past
+  production is still the better predictor of future production.
+- **Some players are boom-or-bust by nature.** Week-to-week volatility is overwhelmingly a
+  function of how good a player is, not a separate personal trait, and what looks like a
+  boom-bust profile regresses hard.
+- **Advanced tracking data gives you an edge.** Separation and cushion barely move with scoring
+  and are not stable from one half of a season to the next.
+
+The measurements behind all of this are in [docs/CONCEPT.md](docs/CONCEPT.md).
+
+## Running it
+
+```
+npm install
+npm run refresh     # fetch and normalise the feeds
+npm run board       # run the model, write the week the page renders
+npm run dev
+npm test
+```
 
 ## Data
 
 Player statistics, schedules with betting lines, snap counts and injury reports come from
-**[nflverse](https://github.com/nflverse/nflverse-data)**, used under **CC BY 4.0**.
-Player identifiers and league data come from the Sleeper API. No key, no scraping, and nothing
-here costs anyone money to serve.
+**[nflverse](https://github.com/nflverse/nflverse-data)**, used under **CC BY 4.0**. Player
+identifiers come from the Sleeper API. No key, no scraping, and nothing here costs anyone money
+to serve.
