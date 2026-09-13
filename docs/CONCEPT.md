@@ -1,4 +1,4 @@
-# spike
+# FantasyStats
 
 Fantasy football, told as odds rather than as a number.
 
