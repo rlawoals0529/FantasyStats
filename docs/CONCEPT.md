@@ -96,8 +96,12 @@ All free, no key, no scraping, and no terms of service to fall foul of.
 | nflverse `injuries` | CC-BY-4.0 | practice and game status |
 | Sleeper API | free, no key | player ids, season state, league sync |
 
-One season of the columns this needs is 472 kB gzipped, so it ships as static assets and
-needs no database.
+One season of the columns this needs is **78 kB gzipped**, 290 kB raw, so it ships as static
+assets and needs no database.
+
+That figure was first written here as 472 kB, which was measured over a much wider column set
+than the contract actually needs. The pipeline measured the real thing and said so rather than
+padding to meet the budget, which is the correct behaviour and the number is corrected here.
 
 ## What this is not
 

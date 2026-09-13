@@ -9,5 +9,11 @@
     "typecheck": "tsc --noEmit",
     "refresh": "node --experimental-strip-types scripts/refresh.ts",
     "backtest": "node --experimental-strip-types scripts/backtest.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.0",
+    "vitest": "5.0.0"
   }
 }

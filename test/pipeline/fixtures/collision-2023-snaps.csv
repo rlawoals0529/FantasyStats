@@ -1,0 +1,7 @@
+game_id,pfr_game_id,season,game_type,week,player,pfr_player_id,position,team,opponent,offense_snaps,offense_pct,defense_snaps,defense_pct,st_snaps,st_pct
+2023_01_BUF_NYJ,202309110nyj,2023,REG,1,Michael Carter,CartMi03,RB,NYJ,BUF,12,0.22,0,0,0,0
+2023_01_BUF_NYJ,202309110nyj,2023,REG,1,Michael Carter II,CartMi02,CB,NYJ,BUF,0,0,56,0.81,0,0
+2023_02_NYJ_DAL,202309170dal,2023,REG,2,Michael Carter,CartMi03,RB,NYJ,DAL,15,0.32,0,0,5,0.18
+2023_02_NYJ_DAL,202309170dal,2023,REG,2,Michael Carter II,CartMi02,CB,NYJ,DAL,0,0,33,0.38,1,0.04
+2023_03_NE_NYJ,202309240nyj,2023,REG,3,Michael Carter,CartMi03,RB,NYJ,NE,15,0.24,0,0,4,0.13
+2023_03_NE_NYJ,202309240nyj,2023,REG,3,Michael Carter II,CartMi02,CB,NYJ,NE,0,0,47,0.65,2,0.06

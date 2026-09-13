@@ -1,0 +1,1194 @@
+/* spike: the instrument layer.
+ *
+ * The world this page is trying to be in is a measuring instrument. Not a dashboard and not an
+ * observatory: a bench meter with a scale printed on it, where the ink IS the reading and the
+ * chrome is hairlines and small type that stays out of the way. Everything follows from that.
+ * There are no cards, no filled chips, no coloured status badges and no second accent, because
+ * each of those is a decision to make something look important instead of measuring it.
+ *
+ * THE COLOUR RULE, and it is one line: --accent is a fill and never anything else. It marks the
+ * area past the spike gate on a distribution and the winning half of a margin, and that is the
+ * entire list. Anything with a meaning that must be read - a stroke, a label, a control
+ * boundary - uses --accent-text, --accent-2 or --dim. This is not taste. Measured across the
+ * fifteen palettes, --accent against --bg runs from 8.49 down to 2.11 on moonlit-skyline, so an
+ * accent-coloured word is illegible on a palette nobody is looking at while you work.
+ *
+ * The rest of the numbers this file is written against, all measured off palettes.css:
+ *
+ *   --fg on --bg            13.01 worst   moonlit-skyline
+ *   --dim on --bg            4.80 worst   sakura-lake      passes text by 0.30
+ *   --dim on --panel         5.08 worst   twilight-comet
+ *   --dim on --raised        4.50 worst   wisteria-alley   EXACTLY the floor, so --raised is unused
+ *   --accent-text on --bg    4.81 worst   sakura-lake
+ *   --accent-2 on --bg       4.82 worst   sakura-lake
+ *   --ok/--err/--warn on bg  4.81 worst   sakura-lake
+ *   --on-accent on --accent  4.50 worst   plushie-pink     EXACTLY the floor
+ *   --edge-strong on --bg    3.00 worst   plushie-pink     exactly 3:1, no headroom
+ *   --edge-strong on --panel 2.74 worst   coral-horizon    FAILS 3:1, never a control boundary
+ *   --edge on --bg           1.42 worst   moonlit-skyline  decoration only
+ *
+ * Three consequences that look like arbitrary rules until you have those numbers:
+ *
+ * 1. NO OPACITY ON TEXT, EVER. --dim clears the 4.5 floor by three hundredths of a ratio on the
+ *    worst palette. `opacity: .8` on a --dim label spends more than that, and the probe reports
+ *    it as a failure on a palette the author never opened. Dim text is dim by being --dim.
+ * 2. A CONTROL BOUNDARY IS --dim. --edge-strong reaches exactly 3.00 against --bg and 2.74
+ *    against --panel, so it is a hairline for separators and nothing else. --dim is past 4.8
+ *    everywhere and a boundary only needs 3.
+ * 3. --raised IS NOT USED. Its only readable ink is --fg. A surface that can carry one weight of
+ *    text is not a surface, it is a trap for the next person adding a caption.
+ */
+
+/* ---- The sheet ----------------------------------------------------------------------- */
+
+/* layout-flat.css sets .wrap to 940px for a reading column. This page is not a reading column:
+   it is a scale that the eye travels along, and a wider one carries more resolution per point
+   of score. The gutter is set once here, with padding-block so a later vertical tweak cannot
+   reach the sides. */
+.sheet {
+  max-width: 1180px;
+  margin-inline: auto;
+  padding-inline: 20px;
+  padding-block: 0 120px;
+  max-width: min(1180px, 100%);
+  overflow-x: clip;
+}
+
+@media (min-width: 720px) {
+  .sheet {
+    padding-inline: 34px;
+  }
+}
+
+/* ---- Micro type ---------------------------------------------------------------------- */
+
+/* The instrument's own labelling. Small, letterspaced, mono, and always --dim on --bg or
+   --panel. Never smaller than 10px: below that the letterspacing needed to keep it legible
+   makes it wider than the column it labels. */
+.label {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+  line-height: 1.4;
+}
+
+.fig {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "zero" 1;
+}
+
+/* ---- Masthead ------------------------------------------------------------------------ */
+
+.masthead {
+  padding-block: 44px 0;
+}
+
+.mark {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  margin-bottom: 30px;
+}
+
+.masthead h1 {
+  font-size: clamp(38px, 8.4vw, 84px);
+  line-height: 0.94;
+  letter-spacing: -0.022em;
+  max-width: 15ch;
+  margin-bottom: 22px;
+  color: var(--fg);
+}
+
+/* The one figure in the headline is set in the mono face at the same size, so the sentence
+   reads as an instrument printing a value rather than as a sentence containing a number. */
+.masthead h1 .fig {
+  font-size: 0.92em;
+  /* Mono figures carry their own sidebearings, and at 84px the gap either side of the decimal
+     point opens up far enough to read as three tokens rather than one number. */
+  letter-spacing: -0.07em;
+  color: var(--accent-text);
+  font-variation-settings: normal;
+}
+
+.lede {
+  max-width: 58ch;
+  font-size: clamp(15px, 1.6vw, 17.5px);
+  line-height: 1.5;
+  color: var(--dim);
+}
+
+/* ---- The fact strip ------------------------------------------------------------------ */
+
+/* Four readings, divided by hairlines, and nothing else. A grid rather than flex so the
+   dividers line up whatever the numbers are. At 400px it is one column and the dividers
+   become horizontal, which is the same object seen end-on rather than a different layout. */
+.facts {
+  margin-top: 46px;
+  display: grid;
+  gap: 1px;
+  background: var(--edge);
+  border-block: 1px solid var(--edge);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .facts {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.fact {
+  background: var(--bg);
+  padding: 16px 18px 18px;
+}
+
+.fact b {
+  display: block;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(19px, 2.4vw, 25px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+  margin-bottom: 7px;
+}
+
+.fact span {
+  display: block;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dim);
+  line-height: 1.5;
+}
+
+/* A reading that got worse is stated in --err rather than in a word. 4.85:1 at worst. */
+.fact.worse b {
+  color: var(--err);
+}
+
+/* ---- Sections ------------------------------------------------------------------------ */
+
+/* layout-flat.css gives .panel a top rule already. This page numbers its sections instead,
+   because a numbered scale is the thing it is imitating. */
+.band {
+  margin-top: 76px;
+}
+
+.band__head {
+  display: grid;
+  gap: 10px 24px;
+  grid-template-columns: 1fr;
+  align-items: baseline;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--edge);
+}
+
+@media (min-width: 780px) {
+  .band__head {
+    grid-template-columns: auto 1fr auto;
+  }
+}
+
+.band__no {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--dim);
+}
+
+.band__head h2 {
+  /* base.css sets h2 to 12px uppercase --dim. This page's section titles are the loudest
+     thing after the headline, so they are re-set rather than inherited. */
+  font-family: var(--font-display, inherit);
+  font-size: clamp(21px, 2.8vw, 27px);
+  font-weight: var(--display-weight, 600);
+  letter-spacing: -0.01em;
+  text-transform: none;
+  color: var(--fg);
+  line-height: 1.1;
+}
+
+.band__note {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--dim);
+  max-width: 62ch;
+  margin-top: 12px;
+}
+
+/* ---- Controls ------------------------------------------------------------------------ */
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 6px;
+  align-items: center;
+  margin-top: 18px;
+}
+
+.controls__group {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--dim);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+/* layout-flat.css strips buttons back to underlined words. These are segmented controls on a
+   meter, so they are re-bordered here. One boundary weight, --dim, per the rule at the top. */
+.controls button {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  min-height: 34px;
+  padding: 7px 12px;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--dim);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 140ms ease-out, background-color 140ms ease-out;
+}
+
+.controls__group button + button {
+  border-left: 1px solid var(--edge);
+}
+
+.controls button:hover:not(:disabled) {
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.controls button[aria-pressed="true"],
+.controls button[aria-selected="true"] {
+  background: var(--panel);
+  color: var(--fg);
+}
+
+.controls button:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: -2px;
+}
+
+.controls__label {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-right: 2px;
+}
+
+/* ---- The ruler ----------------------------------------------------------------------- */
+
+/* Sticky, because a scale you have to scroll away from to read is not a scale. It carries the
+   spike gate, which is the one mark on this page that has to stay visible at all times: every
+   filled area below is measured against it. */
+.ruler {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--bg);
+  border-bottom: 1px solid var(--edge);
+  padding-block: 9px 0;
+}
+
+.ruler__track {
+  position: relative;
+  height: 24px;
+}
+
+.ruler__tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--edge);
+}
+
+.ruler__tick span {
+  position: absolute;
+  top: 9px;
+  left: 4px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+/* The gate. --accent-text rather than --accent because this line means something: everything
+   to the right of it is a spike, and a mark that carries a rule has to clear 3:1. */
+.ruler__gate {
+  position: absolute;
+  top: 0;
+  bottom: -1px;
+  width: 1px;
+  background: var(--accent-text);
+}
+
+.ruler__gate span {
+  position: absolute;
+  top: 9px;
+  left: 5px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  white-space: nowrap;
+}
+
+/* ---- The stack ----------------------------------------------------------------------- */
+
+.stack {
+  position: relative;
+}
+
+/* The ink. Behind every row, sized to the whole list, redrawn from the rows' own measured
+   rectangles so the picture cannot drift out of step with the layout. */
+/* ABOVE the rows, not behind them.
+   Behind was the first version and it is wrong for one reason that took a screenshot to see:
+   a selected row paints a --panel background, and an opaque background over the canvas erases
+   the ridge of the one row the reader is looking at. On top, the row tint sits under the ink
+   where it belongs. Nothing under the ink column is text, so nothing is covered. */
+.stack__ink {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 2;
+  /* This canvas takes no pointer events of its own. The rows above it are the hit targets, so
+     that a click and a keypress land on exactly the same object. */
+  pointer-events: none;
+}
+
+.stack__rows {
+  position: relative;
+  z-index: 1;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.stack__rows:focus {
+  outline: none;
+}
+
+/* The listbox is one tab stop for thirty-six rows, and the ring goes round the active row
+   rather than the list, so a keyboard user sees where they are and not merely that they are
+   somewhere. */
+.stack__rows:focus-visible .row[aria-selected="true"] {
+  outline: 2px solid var(--accent-text);
+  outline-offset: -1px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  grid-template-areas: "rail id fig" "rail ink ink";
+  column-gap: 10px;
+  align-items: center;
+  min-height: 72px;
+  padding-block: 6px;
+  border-bottom: 1px solid color-mix(in srgb, var(--edge) 55%, transparent);
+  cursor: pointer;
+}
+
+@media (min-width: 780px) {
+  .row {
+    grid-template-columns: 22px 42px minmax(150px, 210px) 1fr 118px;
+    grid-template-areas: "rail rank id ink fig";
+    min-height: 48px;
+    column-gap: 14px;
+  }
+}
+
+.row:hover {
+  background: var(--panel);
+}
+
+.row[aria-selected="true"] {
+  background: var(--panel);
+}
+
+.row__rail {
+  grid-area: rail;
+  align-self: stretch;
+}
+
+.row__rank {
+  grid-area: rank;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--dim);
+  text-align: right;
+  display: none;
+}
+
+@media (min-width: 780px) {
+  .row__rank {
+    display: block;
+  }
+}
+
+.row__id {
+  grid-area: id;
+  min-width: 0;
+}
+
+.row__name {
+  display: block;
+  font-size: 13.5px;
+  line-height: 1.25;
+  color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row__meta {
+  display: block;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The lane the ridge is drawn in. Empty on purpose: it exists so the renderer can measure
+   where the ink goes, which keeps the picture responsive without the renderer knowing a
+   single breakpoint. */
+/* The lane the ridge is drawn in. Empty on purpose: it exists so the renderer can measure
+   where the ink goes, which keeps the picture responsive without the renderer knowing a
+   single breakpoint. Its HEIGHT is the whole vertical budget of a distribution, so it is the
+   one number that decides whether the board reads as shapes or as a list of flat lines. */
+.row__ink {
+  grid-area: ink;
+  height: 36px;
+  min-width: 0;
+}
+
+@media (min-width: 780px) {
+  .row__ink {
+    height: 40px;
+  }
+}
+
+.row__fig {
+  grid-area: fig;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.row__spike {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  color: var(--fg);
+  letter-spacing: -0.01em;
+}
+
+.row__spike i {
+  font-style: normal;
+  font-size: 10px;
+  color: var(--dim);
+  margin-left: 1px;
+}
+
+.row__span {
+  display: block;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--dim);
+  margin-top: 1px;
+}
+
+/* ---- The selected-player readout ----------------------------------------------------- */
+
+.readout {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid var(--edge);
+  display: grid;
+  gap: 26px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 860px) {
+  .readout {
+    grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
+    gap: 40px;
+  }
+}
+
+.readout__odds {
+  font-family: var(--font-display, inherit);
+  font-size: clamp(54px, 9vw, 76px);
+  font-weight: var(--display-weight, 600);
+  line-height: 0.9;
+  letter-spacing: -0.03em;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.readout__odds i {
+  font-style: normal;
+  font-size: 0.32em;
+  color: var(--dim);
+  letter-spacing: 0;
+  margin-left: 4px;
+}
+
+.readout__who {
+  font-size: 16px;
+  color: var(--fg);
+  margin-top: 14px;
+}
+
+.readout__tie {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--dim);
+  margin-top: 10px;
+  max-width: 46ch;
+}
+
+/* The reasons. A definition list, because that is what it is: a label, a value and an effect
+   size that the reader is invited to check. */
+.reasons {
+  display: grid;
+  gap: 0;
+}
+
+.reason {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 16px;
+  padding-block: 11px;
+  border-top: 1px solid var(--edge);
+  align-items: baseline;
+}
+
+.reason:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.reason__label {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.reason__effect {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  align-self: center;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  text-align: right;
+  color: var(--fg);
+}
+
+.reason__effect.up {
+  color: var(--ok);
+}
+
+.reason__effect.down {
+  color: var(--err);
+}
+
+.reason__basis {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--dim);
+  grid-column: 1;
+}
+
+.reason__value {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  color: var(--fg);
+}
+
+/* ---- The numbers table --------------------------------------------------------------- */
+
+/* Not a fallback and not an accessibility afterthought: the same board with the shapes taken
+   away, which is what every other site in this category ships as its entire product. It is
+   here so a reader can see exactly what is lost. */
+.numbers {
+  margin-top: 24px;
+  overflow-x: auto;
+}
+
+/* Ten columns of figures do not fit a phone and should not try. The board's table gets a
+   minimum and its own scroller; the scorecard's four columns need neither. */
+.numbers--wide table {
+  min-width: 620px;
+}
+
+.numbers--narrow table {
+  width: auto;
+}
+
+.numbers--narrow th,
+.numbers--narrow td {
+  padding-right: 26px;
+}
+
+.numbers caption {
+  text-align: left;
+  font-size: 12.5px;
+  color: var(--dim);
+  padding-bottom: 12px;
+  max-width: 62ch;
+  line-height: 1.5;
+}
+
+.numbers th,
+.numbers td {
+  padding: 7px 10px 7px 0;
+}
+
+.numbers td {
+  color: var(--fg);
+}
+
+.numbers td.fig {
+  text-align: right;
+  font-size: 12.5px;
+}
+
+.numbers td.dim {
+  color: var(--dim);
+}
+
+/* ---- The week simulator -------------------------------------------------------------- */
+
+.sim {
+  display: grid;
+  gap: 30px;
+  grid-template-columns: 1fr;
+  margin-top: 26px;
+}
+
+@media (min-width: 900px) {
+  .sim {
+    grid-template-columns: minmax(230px, 290px) minmax(0, 1fr);
+    gap: 40px;
+  }
+}
+
+.lineups {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: 1fr 1fr;
+}
+
+@media (min-width: 900px) {
+  .lineups {
+    grid-template-columns: 1fr;
+  }
+}
+
+.lineup h3 {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.lineup.mine h3 {
+  color: var(--accent-text);
+}
+
+.lineup.theirs h3 {
+  color: var(--accent-2);
+}
+
+.lineup__total {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  color: var(--dim);
+  margin-bottom: 10px;
+  display: block;
+}
+
+.slot {
+  display: block;
+  border-bottom: 1px solid var(--edge);
+}
+
+.slot select {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11.5px;
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 2px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--fg);
+  cursor: pointer;
+  /* The native control's own arrow is kept. Replacing it is three lines of CSS and a whole
+     class of bugs on the two platforms nobody tests on. */
+}
+
+.slot select:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 1px;
+}
+
+.sim__run {
+  margin-top: 22px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+/* The one filled control on the page, per layout-flat.css's rule. --on-accent on --accent is
+   4.50:1 at worst, which is the floor exactly, so this label carries no opacity and no
+   lightened hover. Hover moves the fill, not the text. */
+.sim__run button.primary {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  min-height: 40px;
+  padding: 11px 22px;
+}
+
+.sim__run button.primary:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 3px;
+}
+
+/* The cloud gets its own column so it can stay near square. Read against its own diagonal, a
+   scatter whose axes disagree about what a point is worth is a different picture: the line is
+   still the boundary, but "how far above it" stops meaning the same thing horizontally and
+   vertically, and that is the reading the whole plot is for. */
+.sim__panels {
+  display: grid;
+  gap: 22px;
+  grid-template-columns: 1fr;
+  min-width: 0;
+}
+
+@media (min-width: 1040px) {
+  .sim__panels {
+    grid-template-columns: minmax(0, 1.02fr) minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    column-gap: 30px;
+  }
+
+  .sim__panels > [data-plot="cloud"] {
+    grid-row: 1 / span 2;
+  }
+}
+
+.plot {
+  min-width: 0;
+}
+
+.plot__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 14px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--edge);
+  margin-bottom: 9px;
+}
+
+.plot__val {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  color: var(--fg);
+  white-space: nowrap;
+}
+
+.plot canvas {
+  display: block;
+  width: 100%;
+  /* A canvas is an image as far as the pointer is concerned. Every interaction on this page is
+     a DOM control, so nothing here ever needs to be hit. */
+  pointer-events: none;
+}
+
+.plot__axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 5px;
+}
+
+.plot__axis span {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+}
+
+/* The verdict. The biggest figure on the page after the headline, and it never appears without
+   the interval beside it, which is `format.ts`'s job to enforce. */
+.verdict {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid var(--edge);
+}
+
+.verdict b {
+  display: block;
+  font-family: var(--font-display, inherit);
+  font-size: clamp(40px, 7vw, 62px);
+  font-weight: var(--display-weight, 600);
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.verdict b i {
+  font-style: normal;
+  font-size: 0.3em;
+  color: var(--dim);
+  letter-spacing: 0;
+  margin-left: 6px;
+}
+
+.verdict p {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--dim);
+  margin-top: 12px;
+  max-width: 56ch;
+}
+
+/* ---- Regression ---------------------------------------------------------------------- */
+
+.regress {
+  margin-top: 24px;
+}
+
+.regress__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 16px;
+  align-items: center;
+  padding-block: 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--edge) 55%, transparent);
+}
+
+@media (min-width: 720px) {
+  .regress__row {
+    grid-template-columns: minmax(150px, 220px) minmax(0, 1fr) 92px;
+  }
+}
+
+.regress__who {
+  font-size: 13.5px;
+  color: var(--fg);
+}
+
+.regress__who span {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+  margin-left: 7px;
+}
+
+.regress__bar {
+  position: relative;
+  height: 16px;
+  min-width: 0;
+}
+
+.regress__bar::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--edge);
+}
+
+.regress__fill {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  background: var(--dim);
+}
+
+.regress__fill.sell {
+  background: var(--err);
+}
+
+.regress__fill.buy {
+  background: var(--ok);
+}
+
+.regress__val {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  text-align: right;
+  color: var(--fg);
+}
+
+.regress__val span {
+  display: block;
+  font-size: 10px;
+  color: var(--dim);
+  letter-spacing: 0.08em;
+}
+
+/* ---- Scorecard ----------------------------------------------------------------------- */
+
+.grade {
+  display: grid;
+  gap: 30px;
+  grid-template-columns: 1fr;
+  margin-top: 26px;
+  align-items: start;
+}
+
+@media (min-width: 820px) {
+  .grade {
+    grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+    gap: 44px;
+  }
+}
+
+.grade__note {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--dim);
+  max-width: 56ch;
+}
+
+.grade__note strong {
+  color: var(--fg);
+  font-weight: 500;
+}
+
+/* ---- The overlay --------------------------------------------------------------------- */
+
+/*
+ * THE RULE THIS WHOLE ELEMENT EXISTS TO OBEY.
+ *
+ * A fixed element at inset 0 covers the viewport, and a covered viewport swallows every
+ * pointer event aimed at anything underneath it. With a transparent background nothing shows
+ * that it is there: the page looks right, the hover states never fire, and clicks land on a
+ * div. `pointer-events: none` here hands every event straight through, and the one child that
+ * genuinely needs to be hit opts back in.
+ *
+ * `test/ui/overlay.test.ts` fails if this declaration is removed, and `e2e/interaction.mjs`
+ * checks it the only way that is real, by asking the browser what is actually on top of the
+ * board.
+ */
+.gauge {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+}
+
+.gauge__hud {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  display: flex;
+  gap: 0;
+  border-top: 1px solid var(--edge);
+  border-right: 1px solid var(--edge);
+  /* Opaque. A translucent readout over a scrolling page has no defined ground and so no
+     defined contrast ratio, and any number a probe reports for it is composited fiction. */
+  background: var(--panel);
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.gauge__cell {
+  padding: 6px 12px;
+  border-left: 1px solid var(--edge);
+  white-space: nowrap;
+}
+
+.gauge__cell:first-child {
+  border-left: 0;
+}
+
+.gauge__cell b {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--fg);
+}
+
+.gauge__cell span {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-left: 6px;
+}
+
+/* ---- Palette picker ------------------------------------------------------------------ */
+
+.palette {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  z-index: 5;
+}
+
+@media (min-width: 720px) {
+  .palette {
+    right: 34px;
+  }
+}
+
+.palette select {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  min-height: 34px;
+  padding: 6px 8px;
+  background: var(--bg);
+  color: var(--dim);
+  /* A control's boundary needs 3:1 and --edge-strong reaches exactly 3.00 on --bg with nothing
+     to spare. --dim is past 4.8 on every palette. */
+  border: 1px solid var(--dim);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.palette select:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+/* ---- Skip link ----------------------------------------------------------------------- */
+
+.skip {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 60;
+  background: var(--panel);
+  color: var(--fg);
+  padding: 11px 15px;
+  border: 1px solid var(--dim);
+  border-radius: 3px;
+  font-size: 13px;
+}
+
+.skip:focus {
+  left: 16px;
+  top: 16px;
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+/* ---- Footer -------------------------------------------------------------------------- */
+
+.colophon {
+  margin-top: 78px;
+  padding-top: 22px;
+  border-top: 1px solid var(--edge);
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--dim);
+  max-width: 68ch;
+}
+
+/* ---- Reduced motion ------------------------------------------------------------------ */
+
+/*
+ * The still composition is not the animation switched off.
+ *
+ * With motion the simulator resolves: ten thousand matchups land over about two seconds and
+ * the interval round the win probability shrinks while you watch, which is the argument this
+ * site makes, made visible. Switching that off leaves a final cloud and no argument.
+ *
+ * So the reduced-motion page draws a different picture: the ladder of four sample sizes, each
+ * with its own cloud and its own interval, side by side. The same fact, laid out in space
+ * instead of in time, and it is arguably the better exhibit because you can compare the four
+ * rather than remember them. `.ladder` is only ever built under this query.
+ */
+.ladder {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--edge);
+  border: 1px solid var(--edge);
+  margin-top: 18px;
+}
+
+@media (min-width: 700px) {
+  .ladder {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.ladder__cell {
+  background: var(--bg);
+  padding: 12px 12px 14px;
+  min-width: 0;
+}
+
+.ladder__cell canvas {
+  display: block;
+  width: 100%;
+  pointer-events: none;
+  margin-bottom: 9px;
+}
+
+.ladder__n {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dim);
+  display: block;
+}
+
+.ladder__p {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  color: var(--fg);
+  display: block;
+  margin-top: 3px;
+}

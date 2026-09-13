@@ -1,0 +1,77 @@
+season,game_type,team,week,gsis_id,position,full_name,first_name,last_name,report_primary_injury,report_secondary_injury,report_status,practice_primary_injury,practice_secondary_injury,practice_status,date_modified
+2024,REG,ARI,1,00-0039521,WR,Xavier Weaver,Xavier,Weaver,Oblique,,Out,Oblique,,Did Not Participate In Practice,2024-09-06T19:05:30Z
+2024,REG,ARI,1,00-0037141,S,Joey Blount,Joey,Blount,Back,,Questionable,Back,,Limited Participation in Practice,2024-09-06T19:05:21Z
+2024,REG,ARI,1,00-0039737,TE,Tip Reiman,Tip,Reiman,Ankle,,Questionable,Ankle,,Limited Participation in Practice,2024-09-06T19:05:21Z
+2024,REG,ATL,1,00-0031583,DT,Grady Jarrett,Grady,Jarrett,,,,Not injury related - resting player,,Did Not Participate In Practice,2024-09-06T18:35:04Z
+2024,REG,ATL,1,00-0033051,DT,David Onyemata,David,Onyemata,,,,Not injury related - resting player,,Did Not Participate In Practice,2024-09-06T18:35:48Z
+2024,REG,ATL,1,00-0037587,LB,Nate Landman,Nate,Landman,,,,Quadricep,,Full Participation in Practice,2024-09-06T18:33:05Z
+2024,REG,ATL,1,00-0036970,TE,Kyle Pitts,Kyle,Pitts,,,,Hamstring,,Full Participation in Practice,2024-09-06T18:32:46Z
+2024,REG,ATL,1,00-0036948,DE,Ta'Quon Graham,Ta'Quon,Graham,,,,Not injury related - resting player,,Limited Participation in Practice,2024-09-06T18:34:43Z
+2024,REG,ATL,1,00-0031279,T,Jake Matthews,Jake,Matthews,,,,Not injury related - resting player,,Limited Participation in Practice,2024-09-06T18:34:09Z
+2024,REG,ATL,1,00-0032933,CB,Antonio Hamilton,Antonio,Hamilton,Groin,,Out,Groin,,Did Not Participate In Practice,2024-09-06T18:36:29Z
+2024,REG,BAL,1,00-0031360,LB,Kyle Van Noy,Kyle,Van Noy,gameday concussion protocol evaluation,Eye,Out,,,"
+    ",2024-09-06T03:11:40Z
+2024,REG,BAL,1,00-0039791,LB,Adisa Isaac,Adisa,Isaac,Hamstring,,Out,Hamstring,,Did Not Participate In Practice,2024-09-04T16:29:36Z
+2024,REG,BAL,1,00-0039796,RB,Rasheen Ali,Rasheen,Ali,Neck,,Doubtful,Neck,,Limited Participation in Practice,2024-09-04T16:29:28Z
+2024,REG,BUF,1,00-0039872,S,Cole Bishop,Cole,Bishop,,,,Shoulder,,Full Participation in Practice,2024-09-07T20:07:55Z
+2024,REG,BUF,1,00-0036590,TE,Quintin Morris,Quintin,Morris,,,,Shoulder,,Full Participation in Practice,2024-09-07T20:07:55Z
+2024,REG,BUF,1,00-0033282,WR,Curtis Samuel,Curtis,Samuel,,,,Toe,,Full Participation in Practice,2024-09-07T20:07:55Z
+2024,REG,BUF,1,00-0033869,QB,Mitchell Trubisky,Mitchell,Trubisky,,,,Knee,,Full Participation in Practice,2024-09-07T20:07:55Z
+2024,REG,BUF,1,00-0039879,DE,Javon Solomon,Javon,Solomon,Oblique,,Out,Oblique,,Did Not Participate In Practice,2024-09-06T19:35:04Z
+2024,REG,BUF,1,00-0033907,DE,Dawuane Smoot,Dawuane,Smoot,Toe,,Questionable,Toe,,Did Not Participate In Practice,2024-09-06T19:35:24Z
+2024,REG,GB,1,00-0039850,LB,Edgerrin Cooper,Edgerrin,Cooper,,,,Hip,,Full Participation in Practice,2024-09-05T18:52:55Z
+2024,REG,GB,1,00-0037816,WR,Romeo Doubs,Romeo,Doubs,,,,Hand,,Full Participation in Practice,2024-09-05T18:53:08Z
+2024,REG,GB,1,00-0038408,CB,Carrington Valentine,Carrington,Valentine,,,,Hamstring,,Full Participation in Practice,2024-09-05T18:53:27Z
+2024,REG,GB,1,00-0037364,DE,Arron Mosby,Arron,Mosby,Not injury related - personal matter,,Out,Did not travel to Brazil due to a personal matter and will not play in the game.,,Note,2024-09-05T19:00:32Z
+2024,REG,GB,1,00-0038996,TE,Tucker Kraft,Tucker,Kraft,Back,,Questionable,Back,,Limited Participation in Practice,2024-09-05T18:54:59Z
+2024,REG,GB,1,00-0039811,RB,MarShawn Lloyd,MarShawn,Lloyd,Hamstring,,Questionable,Hamstring,,Limited Participation in Practice,2024-09-05T18:54:59Z
+2024,REG,GB,1,00-0038797,RB,Emanuel Wilson,Emanuel,Wilson,Hip,,Questionable,Hip,,Limited Participation in Practice,2024-09-05T18:54:59Z
+2024,REG,KC,1,00-0036621,LB,Nick Bolton,Nick,Bolton,,,,Elbow,,Full Participation in Practice,2024-09-04T15:55:06Z
+2024,REG,KC,1,00-0037198,"
+    ",Nazeeh Johnson,Nazeeh,Johnson,,,,Hamstring,,Full Participation in Practice,2024-09-04T15:55:06Z
+2024,REG,KC,1,00-0032762,DT,Chris Jones,Chris,Jones,,,,Shoulder,,Full Participation in Practice,2024-09-04T15:55:06Z
+2024,REG,KC,1,00-0038981,T,Wanya Morris,Wanya,Morris,,,,Knee,,Full Participation in Practice,2024-09-04T15:55:06Z
+2024,REG,KC,1,00-0034818,DT,Derrick Nnadi,Derrick,Nnadi,,,,Triceps,,Full Participation in Practice,2024-09-04T15:55:06Z
+2024,REG,KC,1,00-0032391,G,Joe Thuney,Joe,Thuney,,,,Pectoral,,Full Participation in Practice,2024-09-04T15:55:06Z
+2024,REG,KC,1,00-0038043,CB,Joshua Williams,Joshua,Williams,,,,Hamstring,,Full Participation in Practice,2024-09-04T15:55:06Z
+2024,REG,KC,1,00-0030615,LS,James Winchester,James,Winchester,,,,Shoulder,,Full Participation in Practice,2024-09-04T15:55:06Z
+2024,REG,KC,1,00-0035662,WR,Marquise Brown,Marquise,Brown,Shoulder,,Out,Shoulder,,Did Not Participate In Practice,2024-09-04T15:55:52Z
+2024,REG,MIN,1,00-0029542,CB,Stephon Gilmore,Stephon,Gilmore,,,,Not injury related - resting player,,Did Not Participate In Practice,2024-09-06T19:01:38Z
+2024,REG,MIN,1,00-0029606,"
+    ",Harrison Smith,Harrison,Smith,,,,Not injury related - resting player,,Did Not Participate In Practice,2024-09-06T19:01:54Z
+2024,REG,MIN,1,00-0038994,WR,Jordan Addison,Jordan,Addison,,,,Ankle,,Full Participation in Practice,2024-09-06T19:00:48Z
+2024,REG,MIN,1,00-0037291,WR,Jalen Nailor,Jalen,Nailor,,,,Ankle,,Full Participation in Practice,2024-09-06T19:00:54Z
+2024,REG,NYG,1,00-0038123,S,Dane Belton,Dane,Belton,,,,Back,,Limited Participation in Practice,2024-09-06T18:41:10Z
+2024,REG,NYG,1,00-0035713,LB,Brian Burns,Brian,Burns,,,,Ankle,,Limited Participation in Practice,2024-09-06T18:41:33Z
+2024,REG,NYG,1,00-0035704,QB,Drew Lock,Drew,Lock,,,,Abdomen,,Limited Participation in Practice,2024-09-06T18:41:10Z
+2024,REG,NYG,1,00-0037259,LB,Micah McFadden,Micah,McFadden,,,,Groin,,Limited Participation in Practice,2024-09-06T18:41:10Z
+2024,REG,NYG,1,00-0035645,WR,Gunner Olszewski,Gunner,Olszewski,,,,Groin,,Limited Participation in Practice,2024-09-06T18:41:10Z
+2024,REG,NYJ,1,00-0038401,CB,Jarrick Bernard-Converse,Jarrick,Bernard-Converse,,,,Groin,,Full Participation in Practice,2024-09-07T18:34:31Z
+2024,REG,NYJ,1,00-0038114,T,Max Mitchell,Max,Mitchell,,,,Shoulder,,Full Participation in Practice,2024-09-07T18:34:31Z
+2024,REG,NYJ,1,00-0037601,G,Xavier Newman-Johnson,Xavier,Newman-Johnson,,,,Shoulder,,Full Participation in Practice,2024-09-07T18:34:31Z
+2024,REG,NYJ,1,00-0027947,T,Tyron Smith,Tyron,Smith,,,,Not injury related - resting player,,Full Participation in Practice,2024-09-07T18:34:31Z
+2024,REG,NYJ,1,00-0033536,WR,Mike Williams,Mike,Williams,,,,Knee,,Full Participation in Practice,2024-09-07T18:34:31Z
+2024,REG,NYJ,1,00-0038399,LB,Zaire Barnes,Zaire,Barnes,Ankle,,Out,Ankle,,Did Not Participate In Practice,2024-09-07T18:35:15Z
+2024,REG,NYJ,1,00-0032432,G,Wes Schweitzer,Wes,Schweitzer,Hand,,Out,Hand,,Did Not Participate In Practice,2024-09-07T18:35:22Z
+2024,REG,PHI,1,00-0035676,WR,A.J. Brown,A.J.,Brown,,,,Not injury related - resting player,,Full Participation in Practice,2024-09-05T19:21:06Z
+2024,REG,PHI,1,00-0037002,G,Landon Dickerson,Landon,Dickerson,,,,Not injury related - resting player,,Full Participation in Practice,2024-09-05T19:21:06Z
+2024,REG,PHI,1,00-0035707,LB,Devin White,Devin,White,Ankle,,Out,Ankle,,Did Not Participate In Practice,2024-09-04T12:55:19Z
+2024,REG,PHI,1,00-0036222,CB,Isaiah Rodgers,Isaiah,Rodgers,Hand,,Out,Hand,,Limited Participation in Practice,2024-09-05T19:22:30Z
+2024,REG,PIT,1,00-0039871,T,Troy Fautanu,Troy,Fautanu,,,,Knee,,Full Participation in Practice,2024-09-06T19:22:17Z
+2024,REG,PIT,1,00-0038639,CB,Cory Trice,Cory,Trice,,,,Groin,,Full Participation in Practice,2024-09-06T19:22:17Z
+2024,REG,PIT,1,00-0037228,RB,Jaylen Warren,Jaylen,Warren,,,,Hamstring,,Full Participation in Practice,2024-09-06T19:22:17Z
+2024,REG,PIT,1,00-0038558,TE,Darnell Washington,Darnell,Washington,,,,Knee,,Full Participation in Practice,2024-09-06T19:22:32Z
+2024,REG,PIT,1,00-0039389,DE,Logan Lee,Logan,Lee,Calf,,Out,Calf,,Did Not Participate In Practice,2024-09-06T19:23:49Z
+2024,REG,PIT,1,00-0032954,G,Isaac Seumalo,Isaac,Seumalo,Pectoral,,Out,Pectoral,,Did Not Participate In Practice,2024-09-06T19:23:55Z
+2024,REG,PIT,1,00-0039739,WR,Roman Wilson,Roman,Wilson,Ankle,,Out,Ankle,,Limited Participation in Practice,2024-09-06T19:24:14Z
+2024,REG,PIT,1,00-0029263,QB,Russell Wilson,Russell,Wilson,Calf,,Questionable,Calf,,Limited Participation in Practice,2024-09-06T19:24:26Z
+2024,REG,SF,1,00-0039435,LB,Tatum Bethune,Tatum,Bethune,,,,Ankle,,Full Participation in Practice,2024-09-07T20:55:27Z
+2024,REG,SF,1,00-0037829,G,Spencer Burford,Spencer,Burford,,,,Hand,,Full Participation in Practice,2024-09-07T20:55:27Z
+2024,REG,SF,1,00-0039363,RB,Isaac Guerendo,Isaac,Guerendo,,,,Groin,,Full Participation in Practice,2024-09-07T20:55:38Z
+2024,REG,SF,1,00-0036259,WR,Jauan Jennings,Jauan,Jennings,,,,Ankle,,Full Participation in Practice,2024-09-07T20:55:46Z
+2024,REG,SF,1,00-0034941,P,Mitch Wishnowsky,Mitch,Wishnowsky,,,,Back,Right Knee,Full Participation in Practice,2024-09-07T20:55:27Z
+2024,REG,SF,1,00-0036288,DE,Yetur Gross-Matos,Yetur,Gross-Matos,Knee,,Out,Knee,,Did Not Participate In Practice,2024-09-07T20:56:17Z
+2024,REG,SF,1,00-0038625,LB,Dee Winters,Dee,Winters,Ankle,,Out,Ankle,,Did Not Participate In Practice,2024-09-07T20:56:26Z
+2024,REG,SF,1,00-0036564,S,Talanoa Hufanga,Talanoa,Hufanga,Knee,,Doubtful,Knee,,Limited Participation in Practice,2024-09-07T20:56:32Z
+2024,REG,SF,1,00-0036551,G,Aaron Banks,Aaron,Banks,Finger,,Questionable,Finger,,Limited Participation in Practice,2024-09-07T20:56:02Z
+2024,REG,SF,1,00-0033280,RB,Christian McCaffrey,Christian,McCaffrey,Calf,Achilles,Questionable,Calf,Achilles,Limited Participation in Practice,2024-09-07T20:56:02Z
