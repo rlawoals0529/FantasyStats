@@ -18,13 +18,33 @@
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!--
+      IBM Plex, mono led. The reasoning is in the type block at the top of src/ui/app.css; the
+      short version is that this page is a readout and a readout is set in the face its numbers
+      are set in. There is no display serif here and there is no second family: Plex Mono and
+      Plex Sans are one superfamily on shared skeletons and shared vertical metrics, so a figure
+      keeps its shape moving between a label, a table cell and a 70px reading.
+    -->
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Chivo:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
     />
   </head>
   <body class="grain">
     <a class="skip" href="#board">Skip to the board</a>
+
+    <!--
+      The instrument's chrome. Fixed, one row deep, and it is the only thing on this page that
+      never scrolls away: a nameplate, the week under test, two live channels that follow what
+      the reader is doing, and the palette. Its measured height is written back to the root as
+      `--rail-h` by `rail.ts`, because the sticky ruler and every scroll target below are placed
+      against it and a hardcoded guess is wrong the moment the rail wraps.
+    -->
+    <header class="rail">
+      <h1 class="rail__mark">FantasyStats</h1>
+      <div class="rail__chans"></div>
+      <div class="palette"></div>
+    </header>
 
     <!--
       Fixed, full viewport, and therefore directly over the canvases. `pointer-events: none` in
@@ -36,116 +56,125 @@
       <div class="gauge__hud" aria-hidden="true"></div>
     </div>
 
-    <div class="palette"></div>
-
     <main class="sheet">
-      <header class="masthead">
-        <p class="mark">FantasyStats</p>
-        <h1>Every number on this page is wrong by about <span class="fig">6.2</span></h1>
-        <p class="lede">
-          That is the measured weekly error over 24,616 player-weeks, against a mean of seven. So
-          nothing here is ranked that cannot be told apart, and the figure it leads with is the
-          chance of a twenty-point week rather than a total nobody can back.
-        </p>
-        <dl class="facts">
-          <div class="fact">
-            <dt class="sr-only">Player-weeks measured</dt>
-            <dd><b>24,616</b><span>player-weeks, four seasons, features as of the prior week</span></dd>
-          </div>
-          <div class="fact">
-            <dt class="sr-only">Root mean squared error, baseline against model</dt>
-            <dd><b>6.208 to 6.119</b><span>RMSE, season average against a trained model</span></dd>
-          </div>
-          <div class="fact worse">
-            <dt class="sr-only">Mean absolute error, baseline against model</dt>
-            <dd><b>4.373 to 4.426</b><span>MAE, and the model made it worse</span></dd>
-          </div>
-          <div class="fact">
-            <dt class="sr-only">Spike threshold</dt>
-            <dd><b>20.0</b><span>PPR, the gate every filled area is measured against</span></dd>
-          </div>
-        </dl>
-      </header>
+      <!--
+        The standing readings, on one tape. Five cells, hairline divided, figures first and the
+        sentence demoted to the figure's label. The error this whole project is built around is
+        the lead cell and it is 6.2, not a headline about 6.2.
+      -->
+      <dl class="tape">
+        <div class="tape__cell tape__lead">
+          <dt class="sr-only">Typical weekly error</dt>
+          <dd>
+            <b class="fig">6.2</b>
+            <span>points of weekly error, so every number below is wrong by about this much</span>
+          </dd>
+        </div>
+        <div class="tape__cell">
+          <dt class="sr-only">Player-weeks measured</dt>
+          <dd><b class="fig">24,616</b><span>player-weeks, four seasons, features as of the prior week</span></dd>
+        </div>
+        <div class="tape__cell">
+          <dt class="sr-only">Root mean squared error, baseline against model</dt>
+          <dd><b class="fig">6.208 / 6.119</b><span>rmse, the player's own average against the model</span></dd>
+        </div>
+        <div class="tape__cell worse">
+          <dt class="sr-only">Mean absolute error, baseline against model</dt>
+          <dd><b class="fig">4.373 / 4.426</b><span>mae, and this is the one the model makes worse</span></dd>
+        </div>
+        <div class="tape__cell">
+          <dt class="sr-only">Spike threshold</dt>
+          <dd><b class="fig">20.0</b><span>ppr, the gate every filled area is measured against</span></dd>
+        </div>
+      </dl>
 
-      <section class="band" id="board" aria-labelledby="board-title">
-        <div class="band__head">
-          <span class="band__no">01 / board</span>
-          <h2 id="board-title">The week, as shapes</h2>
-          <p id="board-source" class="meta"></p>
-          <span class="band__no" data-generated></span>
+      <section class="ch" id="board" aria-labelledby="board-title">
+        <div class="ch__spine" aria-hidden="true"><b class="fig">01</b><span>board</span></div>
+        <div class="ch__body">
+          <div class="ch__head">
+            <h2 id="board-title">The week, as shapes</h2>
+            <p class="ch__note">
+              Each row is one simulated distribution on a shared scale, so the areas compare by
+              eye. Filled is everything at twenty points or more. The hairline down the left joins
+              any two rows the model cannot separate, and it runs a long way.
+            </p>
+            <p id="board-source" class="ch__src"></p>
+            <span class="ch__stamp fig" data-generated></span>
+          </div>
+          <div class="controls"></div>
+          <div class="ruler" aria-hidden="true"><div class="ruler__track"></div></div>
+          <div class="stack">
+            <canvas class="stack__ink" aria-hidden="true"></canvas>
+            <ul
+              class="stack__rows"
+              role="listbox"
+              tabindex="0"
+              aria-label="Players, ordered. Arrow keys move, Home and End jump to the ends."
+            ></ul>
+          </div>
+          <div class="readout" role="status" aria-live="polite"></div>
+          <div class="numbers numbers--wide" hidden></div>
         </div>
-        <p class="band__note">
-          Each row is one simulated distribution on one shared scale, so the areas are comparable
-          by eye. The filled part is everything at twenty points or more. Down the left, a hairline
-          joins any two rows the model cannot separate, and it runs a long way.
-        </p>
-        <div class="controls"></div>
-        <div class="ruler" aria-hidden="true"><div class="ruler__track"></div></div>
-        <div class="stack">
-          <canvas class="stack__ink" aria-hidden="true"></canvas>
-          <ul
-            class="stack__rows"
-            role="listbox"
-            tabindex="0"
-            aria-label="Players, ordered. Arrow keys move, Home and End jump to the ends."
-          ></ul>
-        </div>
-        <div class="readout" role="status" aria-live="polite"></div>
-        <div class="numbers numbers--wide" hidden></div>
       </section>
 
-      <section class="band" id="week" aria-labelledby="week-title">
-        <div class="band__head">
-          <span class="band__no">02 / matchup</span>
-          <h2 id="week-title">Ten thousand Sundays</h2>
-          <span class="band__no">seed fixed</span>
-        </div>
-        <p class="band__note">
-          Below the line you won. The share of the cloud on that side is the win probability, and
-          the band on the third plot is how much of it is real: while that band still crosses fifty,
-          the matchup has not been called, however many runs have gone into it.
-        </p>
-        <div class="sim">
-          <div>
-            <div class="lineups"></div>
-            <div class="sim__run"></div>
+      <section class="ch" id="week" aria-labelledby="week-title">
+        <div class="ch__spine" aria-hidden="true"><b class="fig">02</b><span>matchup</span></div>
+        <div class="ch__body">
+          <div class="ch__head">
+            <h2 id="week-title">Ten thousand Sundays</h2>
+            <p class="ch__note">
+              Below the line you won. The share of the cloud on that side is the win probability,
+              and the band on the third plot is how much of it is real: while that band still
+              crosses fifty, the matchup is not called, however many runs have gone in.
+            </p>
+            <span class="ch__stamp fig">seed fixed</span>
           </div>
-          <div class="sim__panels"></div>
+          <div class="sim">
+            <div>
+              <div class="lineups"></div>
+              <div class="sim__run"></div>
+            </div>
+            <div class="sim__panels"></div>
+          </div>
+          <div class="verdict" role="status" aria-live="polite"></div>
         </div>
-        <div class="verdict" role="status" aria-live="polite"></div>
       </section>
 
-      <section class="band" id="regression" aria-labelledby="regression-title">
-        <div class="band__head">
-          <span class="band__no">03 / regression</span>
-          <h2 id="regression-title">Scoring more than the opportunity bought</h2>
-          <span class="band__no">ppg, signed</span>
+      <section class="ch" id="regression" aria-labelledby="regression-title">
+        <div class="ch__spine" aria-hidden="true"><b class="fig">03</b><span>regress</span></div>
+        <div class="ch__body">
+          <div class="ch__head">
+            <h2 id="regression-title">Scoring more than the opportunity bought</h2>
+            <p class="ch__note">
+              Production minus what that workload usually returns. The gap predicts next-half
+              decline at -0.317 for running backs, -0.285 for receivers and -0.345 for tight ends,
+              monotonic across quartiles and worth 2.3 to 2.8 points a game end to end.
+            </p>
+            <span class="ch__stamp fig">ppg, signed</span>
+          </div>
+          <div class="regress"></div>
         </div>
-        <p class="band__note">
-          Production minus what that workload usually returns. The gap predicts next-half decline
-          at -0.317 for running backs, -0.285 for receivers and -0.345 for tight ends, monotonic
-          across quartiles and worth 2.3 to 2.8 points a game between the ends of the range.
-        </p>
-        <div class="regress"></div>
       </section>
 
-      <section class="band" id="scorecard" aria-labelledby="scorecard-title">
-        <div class="band__head">
-          <span class="band__no">04 / scorecard</span>
-          <h2 id="scorecard-title">How the odds held up</h2>
-          <span class="band__no">dot area is sample size</span>
-        </div>
-        <p class="band__note">
-          A claim that lands on the dashed line was worth making. Everything this model states
-          above about 35 per cent sits below it, which is over-confidence, and it has been there
-          all season.
-        </p>
-        <div class="grade">
-          <div>
-            <canvas class="grade__plot" aria-hidden="true"></canvas>
-            <p class="grade__note" data-scorecard-note></p>
+      <section class="ch" id="scorecard" aria-labelledby="scorecard-title">
+        <div class="ch__spine" aria-hidden="true"><b class="fig">04</b><span>grade</span></div>
+        <div class="ch__body">
+          <div class="ch__head">
+            <h2 id="scorecard-title">How the odds held up</h2>
+            <p class="ch__note">
+              A claim that lands on the dashed line was worth making. Everything this model states
+              above about 35 per cent sits below it, which is over-confidence, and it has been
+              there all season.
+            </p>
+            <span class="ch__stamp fig">dot area is sample size</span>
           </div>
-          <div class="numbers numbers--narrow" data-scorecard-table></div>
+          <div class="grade">
+            <div>
+              <canvas class="grade__plot" aria-hidden="true"></canvas>
+              <p class="grade__note" data-scorecard-note></p>
+            </div>
+            <div class="numbers numbers--narrow" data-scorecard-table></div>
+          </div>
         </div>
       </section>
 

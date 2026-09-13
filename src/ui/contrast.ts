@@ -28,10 +28,12 @@ export type Pairing = { readonly fg: string; readonly bg: string; readonly what:
 /** Held to 4.5. Everything a reader reads. */
 export const TEXT_PAIRINGS: readonly Pairing[] = [
   { fg: "fg", bg: "bg", what: "body copy and every player name" },
-  { fg: "fg", bg: "panel", what: "a name on a selected or hovered row" },
+  { fg: "fg", bg: "panel", what: "the rail's three readings, and a name on a selected row" },
   { fg: "dim", bg: "bg", what: "every label, tick, caption and meta line" },
-  { fg: "dim", bg: "panel", what: "the frame readout and a dim cell on a selected row" },
-  { fg: "accent-text", bg: "bg", what: "the wordmark, the gate label, the headline figure" },
+  { fg: "dim", bg: "panel", what: "the rail's keys and units, and the frame readout" },
+  // Not the nameplate. An accent-coloured word at the top left was the loudest thing this page
+  // had in common with the one it is not meant to resemble; the rail is --fg and --dim only.
+  { fg: "accent-text", bg: "bg", what: "the gate label and the mine lineup heading" },
   { fg: "accent-2", bg: "bg", what: "the opponent lineup heading" },
   { fg: "ok", bg: "bg", what: "a buy figure in the regression list" },
   { fg: "err", bg: "bg", what: "a sell figure, and the MAE that got worse" },

@@ -28,10 +28,71 @@ try {
 
   console.log(bold("\n  the page"));
   check("boots with no console error and no uncaught exception", problems.length === 0, problems.join("; "));
+
+  /*
+   * One lane per player on the board that was actually loaded.
+   *
+   * This used to assert the constant 36, which was the fixture's player count, and it went red
+   * the day `live.ts` landed and the page started serving a real 48-player week. A count taken
+   * from the file the page itself fetched cannot go stale that way, and it still catches the
+   * thing worth catching: a board that silently dropped rows, or one that quietly fell back to
+   * the fixture because the fetch failed.
+   */
+  const served = await (await fetch(`${server.url}data/board.json`)).json();
+  const lanes = await page.evaluate(() => window.__spike.lanes());
   check(
-    "built every lane the fixture carries",
-    (await page.evaluate(() => window.__spike.lanes())) === 36,
-    `${await page.evaluate(() => window.__spike.lanes())} lanes`,
+    "built one lane per player on the board it loaded",
+    lanes === served.players.length,
+    `${lanes} lanes against ${served.players.length} players in board.json`,
+  );
+
+  /* ---- The instrument chrome ---------------------------------------------------------- */
+
+  console.log(bold("\n  the fixed rail, and everything positioned against it"));
+
+  /*
+   * The rail is `position: fixed`, so the sheet's top padding, the sticky ruler, the board's
+   * scroll margin and the skip link are all placed against `--rail-h`. `rail.ts` measures the
+   * rail and publishes that value, because the rail wraps to three rows below 700px and a
+   * constant in the stylesheet is about fifty pixels wrong there. These three checks are the
+   * ones that would notice the measurement going stale, and each has a visible symptom: the
+   * ruler under the rail, the board pushed below the fold, or a gap where the rail used to be.
+   */
+  const railFit = await page.evaluate(() => {
+    const rail = document.querySelector(".rail").getBoundingClientRect();
+    const declared = getComputedStyle(document.documentElement).getPropertyValue("--rail-h").trim();
+    const row = document.querySelector(".row").getBoundingClientRect();
+    return {
+      railHeight: rail.height,
+      declared: parseFloat(declared),
+      rowBottom: row.bottom,
+      viewport: innerHeight,
+    };
+  });
+  check(
+    "publishes the height it actually has",
+    Math.abs(railFit.declared - railFit.railHeight) <= 1,
+    `--rail-h is ${railFit.declared}px against a measured ${railFit.railHeight.toFixed(1)}px`,
+  );
+  check(
+    "leaves the board above the fold with nothing scrolled",
+    railFit.rowBottom <= railFit.viewport,
+    `the first row ends at ${railFit.rowBottom.toFixed(0)}px of ${railFit.viewport}px`,
+  );
+
+  const stuck = await page.evaluate(async () => {
+    window.scrollTo(0, 900);
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const rail = document.querySelector(".rail").getBoundingClientRect();
+    const ruler = document.querySelector(".ruler").getBoundingClientRect();
+    const gate = document.querySelector(".ruler__gate").getBoundingClientRect();
+    window.scrollTo(0, 0);
+    return { railBottom: rail.bottom, rulerTop: ruler.top, gateTop: gate.top, scrolled: scrollY };
+  });
+  check(
+    "the sticky ruler comes to rest below the rail rather than underneath it",
+    stuck.rulerTop >= stuck.railBottom - 1 && stuck.gateTop >= stuck.railBottom - 1,
+    `ruler at ${stuck.rulerTop.toFixed(0)}px, rail ends at ${stuck.railBottom.toFixed(0)}px`,
   );
 
   /* ---- The overlay ------------------------------------------------------------------- */
@@ -87,6 +148,20 @@ try {
    * a complete, plausible, entirely monochrome picture with no error anywhere. That shipped
    * once and took a pixel sample to find, which is why this check is a pixel sample.
    */
+  /*
+   * A tolerance and a column, not one pixel and an equality.
+   *
+   * An exact match cannot be right here and the check that asked for one was permanently red:
+   * the spike region is `--accent` at 0.74 over whichever ground the row is painted on, and a
+   * selected row is painted on --panel, so the composited pixel is never the raw token. One
+   * fixed sample point is wrong for a second reason: it lands wherever the current row height
+   * puts it, so a CSS change to the lane moves it onto the outline or off the curve entirely.
+   *
+   * So this scans a column through the filled region for its closest pixel and allows 24 per
+   * channel. That is wide enough to absorb the alpha and the ground, and nowhere near wide
+   * enough to accept the bug it exists for: the unresolved-token fallback is #808080, which is
+   * 118 away from this accent in blue alone.
+   */
   const ink = await page.evaluate(() => {
     const canvas = document.querySelector(".stack__ink");
     const host = document.querySelector(".stack__rows").getBoundingClientRect();
@@ -94,20 +169,31 @@ try {
     const lane = row.querySelector(".row__ink").getBoundingClientRect();
     const dpr = canvas.width / host.width;
     const ctx = canvas.getContext("2d");
-    // Just past the gate, near the baseline, where the accent fill is thickest.
+    const read = (value) => {
+      const probe = document.createElement("canvas").getContext("2d");
+      probe.fillStyle = value;
+      const h = probe.fillStyle.replace("#", "");
+      return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+    };
+    const accent = read(getComputedStyle(document.documentElement).getPropertyValue("--accent").trim());
+    // Well past the gate at 20 of a 45 point axis, so this column is inside the spike region.
     const x = Math.round((lane.left - host.left + lane.width * 0.62) * dpr);
-    const y = Math.round((lane.top - host.top + lane.height * 0.82) * dpr);
-    const [r, g, b, alpha] = ctx.getImageData(x, y, 1, 1).data;
-    const declared = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
-    const probe = document.createElement("canvas").getContext("2d");
-    probe.fillStyle = declared;
-    return { pixel: [r, g, b], alpha, accent: probe.fillStyle, theme: document.documentElement.dataset.theme };
+    const top = lane.top - host.top;
+    let best = null;
+    for (let f = 0.5; f <= 0.97; f += 0.03) {
+      const y = Math.round((top + lane.height * f) * dpr);
+      const [r, g, b] = ctx.getImageData(x, y, 1, 1).data;
+      const gap = Math.max(Math.abs(r - accent[0]), Math.abs(g - accent[1]), Math.abs(b - accent[2]));
+      if (!best || gap < best.gap) best = { gap, pixel: [r, g, b] };
+    }
+    return { ...best, accent, grey: [128, 128, 128], theme: document.documentElement.dataset.theme };
   });
-  const hex = "#" + ink.pixel.map((v) => v.toString(16).padStart(2, "0")).join("");
+  const hex = (rgb) => "#" + rgb.map((v) => v.toString(16).padStart(2, "0")).join("");
+  const greyGap = Math.max(...ink.accent.map((v, i) => Math.abs(v - ink.grey[i])));
   check(
     "the spike fill is this palette's --accent and not a grey fallback",
-    hex === ink.accent,
-    `${hex} against ${ink.accent} on ${ink.theme}`,
+    ink.gap <= 24,
+    `${hex(ink.pixel)} is ${ink.gap} from ${hex(ink.accent)} on ${ink.theme}, and the fallback grey is ${greyGap} away`,
   );
 
   /* ---- The keyboard ------------------------------------------------------------------ */
@@ -176,6 +262,37 @@ try {
   check("arrow keys move the active row", new Set(walk.seen).size === 13);
   check("End and Home reach both ends", walk.last !== walk.home);
   check("exactly one row is ever selected", walk.selected === 1);
+
+  /*
+   * The rail follows the keyboard, which is the whole reason it replaced a heading.
+   *
+   * A status strip that has stopped tracking still looks correct: it holds the first player's
+   * name and odds forever, and every screenshot taken on load is right. What catches it is
+   * moving the selection and reading the strip back against the row that is actually active.
+   */
+  const followed = await page.evaluate(() => {
+    const list = document.querySelector(".stack__rows");
+    const readRail = () => document.querySelector('[data-channel="sel"]').textContent;
+    const activeName = () =>
+      document.querySelector(`#${CSS.escape(list.getAttribute("aria-activedescendant"))} .row__name`)
+        ?.textContent ?? "";
+    list.focus();
+    const first = { rail: readRail(), name: activeName() };
+    for (let i = 0; i < 5; i++) {
+      list.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    }
+    return { first, after: { rail: readRail(), name: activeName() } };
+  });
+  check(
+    "the rail names the row the keyboard is on",
+    followed.after.name.length > 0 && followed.after.rail.includes(followed.after.name),
+    followed.after.rail.replace(/\s+/g, " "),
+  );
+  check(
+    "and it changed when the selection did",
+    followed.after.rail !== followed.first.rail && followed.after.name !== followed.first.name,
+    `${followed.first.name} to ${followed.after.name}`,
+  );
 
   const spoken = await page.evaluate(() => {
     const row = document.querySelector(`#${CSS.escape(document.querySelector(".stack__rows").getAttribute("aria-activedescendant"))}`);

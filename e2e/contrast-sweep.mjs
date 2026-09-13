@@ -43,7 +43,7 @@ const selfTest = process.argv.includes("--self-test");
  * extended to parse after a 2:1 caption sailed through a version that only matched rgb(). So
  * planting it this way exercises the parser as well as the threshold.
  */
-const POISON = `.band__note { color: color-mix(in srgb, var(--fg) 17%, var(--bg)) !important; }`;
+const POISON = `.ch__note { color: color-mix(in srgb, var(--fg) 17%, var(--bg)) !important; }`;
 
 async function sweep(context, url, label, prepare, options = {}) {
   const { page, problems } = await ready(context, url, options);
@@ -153,7 +153,7 @@ try {
   }
 
   if (selfTest) {
-    const caught = all.some((f) => f.cls.includes("band__note"));
+    const caught = all.some((f) => f.cls.includes("ch__note"));
     if (caught) {
       console.log(green(`\n  self-test: the planted 2:1 colour was found. The sweep can go red.\n`));
       process.exit(0);

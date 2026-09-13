@@ -60,6 +60,15 @@ export function mountWeek(
   board: WeekBoard,
   simulate: SimulatorFactory,
   meter: { push(ms: number): void; stats(): { p50: number; p95: number; worst: number; count: number }; reset(): void },
+  /*
+   * The current estimate, once per painted frame, for anything outside this panel that shows it.
+   *
+   * The status rail is the caller: the top of the page reports where the run has got to while it
+   * is still running, which is the argument this panel makes and the reason the rail is not
+   * decoration. Optional and defaulted, so the panel stands alone and the unit suite is
+   * unaffected.
+   */
+  onEstimate: (est: Estimate, done: boolean) => void = () => {},
 ): Week {
   const lineupHost = need(root, ".lineups");
   const runHost = need(root, ".sim__run");
@@ -298,6 +307,7 @@ export function mountWeek(
     // Wilson interval is lopsided and rebuilding it symmetrically would call a matchup the
     // real interval does not call.
     const called = est.lo > 0.5 || est.hi < 0.5;
+    onEstimate(est, done);
     const figure = (value: string, label: string) =>
       el("div", { class: "verdict__fig" }, [
         el("b", { class: "fig", text: value }),

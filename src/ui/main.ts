@@ -23,6 +23,7 @@ import { context2d, el, fill, need, prefersReducedMotion } from "./dom.ts";
 import { FrameMeter } from "./frame-meter.ts";
 import * as fmt from "./format.ts";
 import { mountPicker } from "./palette-picker.ts";
+import { mountRail } from "./rail.ts";
 import { mountRegression } from "./regression.ts";
 import { drawScorecard, renderScorecardTable } from "./scorecard.ts";
 import { sizeCanvas } from "./scales.ts";
@@ -38,7 +39,14 @@ import { liveData } from "./live.ts";
 // The real board, with the fixture as a named fallback rather than the default. See live.ts for
 // why a silent fallback would be the worst outcome available here.
 const live = liveData("data/board.json", () => fixtureBoard());
-const wiring: Wiring = { data: live, simulate: fixtureSimulator(fixtureBoard()) };
+// The simulator is built from the board that was actually loaded, not from the fixture.
+//
+// It was bound to fixtureBoard() here while the data came from the live board, and
+// fixtureSimulator drops ids it does not recognise rather than throwing, so both lineups came
+// back empty and every matchup reported 0 per cent plus or minus 1. Silent, plausible, and
+// wrong: the exact failure this project is organised against. It has to be built after load()
+// resolves, because the ids it needs are the ones in the board.
+const wiring: Pick<Wiring, "data"> = { data: live };
 // -------------------------------------------------------------------------------------------
 
 const boardMeter = new FrameMeter(120);
@@ -47,6 +55,8 @@ const simMeter = new FrameMeter(240);
 async function boot(): Promise<void> {
   const root = document.documentElement;
   const week = await wiring.data.load();
+  // Built from the board that was actually loaded. See the note above the wiring.
+  const simulate = fixtureSimulator(week);
 
   // A producer that missed the shared grid would still draw, just wrongly and subtly: curves
   // squashed toward the left of the scale with their areas intact. Better to say so at boot.
@@ -87,7 +97,34 @@ async function boot(): Promise<void> {
     generated.textContent = `run ${new Date(week.generatedAt).toISOString().slice(0, 16).replace("T", " ")}Z`;
   }
 
-  const board = mountBoard(boardSection, week, (ms) => boardMeter.push(ms));
+  /*
+   * The rail goes up before anything below it is laid out.
+   *
+   * It publishes `--rail-h`, and the sheet's top padding, the sticky ruler and every scroll
+   * margin on the board are expressed against that value. Mounted after the board, the first
+   * layout would use the stylesheet's fallback and the ruler would spend one frame underneath
+   * the rail on any width where the rail wraps.
+   */
+  const rail = mountRail(need<HTMLElement>(document, ".rail"));
+  rail.set("week", { value: String(week.week), unit: `of ${week.season}` });
+  rail.set("sim", { value: "not run", unit: `${fmt.count(10000)} queued` });
+
+  const board = mountBoard(
+    boardSection,
+    week,
+    (ms) => boardMeter.push(ms),
+    (selection) => {
+      if (!selection) {
+        rail.set("sel", { value: "none", unit: "on this filter" });
+        return;
+      }
+      rail.set("sel", {
+        who: selection.player.name,
+        value: fmt.pct(selection.player.outlook.spike),
+        unit: `in 100, rank ${selection.rank} of ${selection.of}`,
+      });
+    },
+  );
   // The heading names the week the board is actually for. It was a constant from the fixture
   // era and read "Week 7" over a week 18 board, which is the same class of error as the bye:
   // the page stating something it had not been told.
@@ -100,7 +137,14 @@ async function boot(): Promise<void> {
     note.dataset["live"] = String(src.live);
   }
 
-  const weekPanel = mountWeek(weekSection, week, wiring.simulate, simMeter);
+  const weekPanel = mountWeek(weekSection, week, simulate, simMeter, (est, done) => {
+    // While the run is still landing this counts up, which is the panel's whole argument stated
+    // in the chrome: the odds are not a fact, they are an estimate that is still arriving.
+    rail.set("sim", {
+      value: fmt.odds(est.p, est.halfWidth),
+      unit: done ? `over ${fmt.count(est.drawn)}` : `at ${fmt.count(est.drawn)}`,
+    });
+  });
   mountRegression(need<HTMLElement>(document, ".regress"), week);
 
   /* ---- Scorecard --------------------------------------------------------------------- */

@@ -40,12 +40,24 @@ with a diagnosis, so it needs adding by whoever owns that file. Locally it is in
 | `src/lib/theme.ts` | `DEFAULT_THEME` and `createThemeStore`, for the palette picker |
 | `src/theme/palettes.css` | all fifteen palettes, scoped to `[data-theme]` |
 | `src/theme/palettes.json` | the manifest the picker renders from |
-| `src/theme/base.css`, `type.css`, `layout-flat.css`, `motion.css`, `texture.css` | structure, the Fraunces and Chivo pairing, and the no-cards layer |
+| `src/theme/base.css`, `type.css`, `layout-flat.css`, `motion.css`, `texture.css` | structure, the type tokens and the no-cards layer |
 | `e2e/contrast-probe.ts` | the browser sweep reads composited computed styles with this |
 
 All of those are vendored or shared and are **never edited here**. `test/ui/guards.test.ts`
 fails if anything under `src/ui/` imports outside `src/ui`, `src/shared`, `src/lib` or
 `src/theme`.
+
+**One of them is used by being overridden.** `type.css` pairs Fraunces with Chivo, and this page
+loads neither. It is a readout, so it is set mono led in IBM Plex, and `app.css` redefines
+`--font-display`, `--font-body` and `--font-mono` on `:root` after the vendored file has had its
+say. That is the whole reason the stylesheet order in `main.ts` ends with `app.css`. The vendored
+file is not edited, and `test/ui/composition.test.ts` fails if the override is dropped or if a
+display serif is requested again.
+
+`layout-flat.css` has a second thing worth knowing before it surprises you: it sets
+`h1 { margin-bottom: 22px }` for an 88px display heading. The only `h1` here is an 11px nameplate
+inside a fixed rail whose height the sticky ruler is positioned against, so `.rail__mark` zeroes
+that margin. Inherited, it added twenty-two invisible pixels to the bar.
 
 The palette manifest is imported as JSON, which works because this project's `tsconfig.json`
 sets `resolveJsonModule`. A project without it would need vite's `?raw` suffix and a parse.

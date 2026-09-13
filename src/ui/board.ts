@@ -45,6 +45,13 @@ const POSITION_WORD: Record<Position, string> = {
   TE: "tight end",
 };
 
+/** Who the reader currently has selected, and where that player sits in the current view. */
+export type Selection = {
+  readonly player: PlayerEntry;
+  readonly rank: number;
+  readonly of: number;
+};
+
 export type Board = {
   /** Re-read the palette off the cascade and repaint. Called when the picker changes. */
   repaint(): void;
@@ -62,7 +69,20 @@ export type Board = {
  * the `const board = mountBoard(...)` that will hold the return, so a callback that reached
  * back through that binding threw before the page had painted once.
  */
-export function mountBoard(root: HTMLElement, week: WeekBoard, onPaint: (ms: number) => void): Board {
+export function mountBoard(
+  root: HTMLElement,
+  week: WeekBoard,
+  onPaint: (ms: number) => void,
+  /*
+   * Whoever else on the page is showing this selection, told once per change.
+   *
+   * The status rail carries the selected player's odds, and the alternative to a callback is the
+   * rail reaching into this module's DOM and reading the text back out, which is a second copy
+   * of the formatting and a second thing to keep in step. Optional and defaulted, because the
+   * board is complete without anyone listening and the unit suite mounts it that way.
+   */
+  onSelect: (selection: Selection | null) => void = () => {},
+): Board {
   const canvas = need<HTMLCanvasElement>(root, ".stack__ink");
   const ctx = context2d(canvas);
   const list = need<HTMLUListElement>(root, ".stack__rows");
@@ -219,8 +239,10 @@ export function mountBoard(root: HTMLElement, week: WeekBoard, onPaint: (ms: num
     const range = ranges[selected];
     if (!player || !range) {
       fill(readout, [el("p", { class: "readout__tie", text: "No player on the board matches that filter." })]);
+      onSelect(null);
       return;
     }
+    onSelect({ player, rank: range.rank, of: view.length });
     const o = player.outlook;
     const tied = range.tiedWith.length;
 

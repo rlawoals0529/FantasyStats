@@ -1,17 +1,36 @@
 /* spike: the instrument layer.
  *
- * The world this page is trying to be in is a measuring instrument. Not a dashboard and not an
- * observatory: a bench meter with a scale printed on it, where the ink IS the reading and the
- * chrome is hairlines and small type that stays out of the way. Everything follows from that.
- * There are no cards, no filled chips, no coloured status badges and no second accent, because
- * each of those is a decision to make something look important instead of measuring it.
+ * This page is a bench meter, not a landing page. There is no hero, no display heading and no
+ * lede: the board is the first thing on screen, already drawn, and everything above it is
+ * chrome. A fixed rail across the top carries the nameplate, the week under test and two live
+ * channels; under it a tape of standing readings; under that four numbered channels separated
+ * by hairlines rather than by whitespace, each with its number and name in a left spine, the
+ * way a strip chart labels a trace.
+ *
+ * THE TYPE RULE. The digits are the typeface. The largest thing on any screen of this page is a
+ * figure, and the words beside it are its label: the selected player's spike odds at 86px, the
+ * win probability at 68px, the standing error at 52px, and every heading on the page at 14.
+ * A heading set larger than a reading would be a page claiming the prose is the product.
+ *
+ * The family is IBM Plex, mono led, and both halves of that are deliberate:
+ *   - Plex was drawn for technical documentation and machine readouts, which is what this is.
+ *   - Plex Mono and Plex Sans are one superfamily on shared skeletons and shared vertical
+ *     metrics, so a figure keeps its shape moving between a 10px label, a table cell and a 86px
+ *     reading, and a mono column can sit beside a sans sentence without a baseline argument.
+ *   - --font-display is redefined to the mono face rather than left at the vendored serif. This
+ *     page has no display serif at all: a drawn, optically sized serif says "an essay about a
+ *     measurement", and the thing being shipped is the measurement.
+ * Everything numeric carries `font-variant-numeric: tabular-nums`, so a figure that updates in
+ * place does not shift sideways as its digits change. `test/ui/composition.test.ts` checks both
+ * halves of this rule: the size ceiling on prose, and the tabular figures on every readout.
  *
  * THE COLOUR RULE, and it is one line: --accent is a fill and never anything else. It marks the
  * area past the spike gate on a distribution and the winning half of a margin, and that is the
  * entire list. Anything with a meaning that must be read - a stroke, a label, a control
  * boundary - uses --accent-text, --accent-2 or --dim. This is not taste. Measured across the
  * fifteen palettes, --accent against --bg runs from 8.49 down to 2.11 on moonlit-skyline, so an
- * accent-coloured word is illegible on a palette nobody is looking at while you work.
+ * accent-coloured word is illegible on a palette nobody is looking at while you work. There is
+ * no accent-coloured word anywhere on this page now, including the nameplate.
  *
  * The rest of the numbers this file is written against, all measured off palettes.css:
  *
@@ -37,26 +56,57 @@
  *    everywhere and a boundary only needs 3.
  * 3. --raised IS NOT USED. Its only readable ink is --fg. A surface that can carry one weight of
  *    text is not a surface, it is a trap for the next person adding a caption.
+ *
+ * A fourth, from the rail: THE RAIL IS --panel AND ITS INK IS --fg OR --dim. Those two are the
+ * only pairings the token file measures against --panel. An --accent-text or --err word up there
+ * would be a ratio nobody has computed, which is how the ruler tick label ended up at 2.01:1.
  */
+
+/* ---- Family and the one measured constant -------------------------------------------- */
+
+:root {
+  --font-body: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  /* Not a serif, and not a second family. See the type rule above. */
+  --font-display: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --display-weight: 500;
+  --display-tracking: 0;
+  --display-leading: 1.05;
+
+  /*
+   * The rail's height, and the fallback only. `rail.ts` measures the real one and writes it back
+   * here, because the rail wraps to two rows on a narrow screen and every sticky and scroll
+   * target below is placed against it. A hardcoded 44 is correct on a desktop and thirty pixels
+   * wrong on a phone, which puts the sticky ruler underneath the rail exactly where it cannot be
+   * read.
+   */
+  --rail-h: 44px;
+}
+
+/* type.css gives every h1 the variable-axis settings its serif carries. There is no serif here
+   and the nameplate is an 11px mono word, so the axes are switched back off. */
+.rail__mark {
+  font-variation-settings: normal;
+}
 
 /* ---- The sheet ----------------------------------------------------------------------- */
 
 /* layout-flat.css sets .wrap to 940px for a reading column. This page is not a reading column:
    it is a scale that the eye travels along, and a wider one carries more resolution per point
    of score. The gutter is set once here, with padding-block so a later vertical tweak cannot
-   reach the sides. */
+   reach the sides. The top padding is the rail, which is fixed and therefore out of flow. */
 .sheet {
-  max-width: 1180px;
+  max-width: 1320px;
   margin-inline: auto;
-  padding-inline: 20px;
-  padding-block: 0 120px;
-  max-width: min(1180px, 100%);
+  padding-inline: 18px;
+  padding-block: calc(var(--rail-h) + 14px) 90px;
+  max-width: min(1320px, 100%);
   overflow-x: clip;
 }
 
 @media (min-width: 720px) {
   .sheet {
-    padding-inline: 34px;
+    padding-inline: 28px;
   }
 }
 
@@ -80,147 +130,397 @@
   font-feature-settings: "zero" 1;
 }
 
-/* ---- Masthead ------------------------------------------------------------------------ */
+/* ---- The rail ------------------------------------------------------------------------ */
 
-.masthead {
-  padding-block: 44px 0;
+/*
+ * The chrome. Fixed at the top, opaque, and the only persistent surface on the page.
+ *
+ * Opaque on purpose: a translucent bar over a scrolling board has no defined ground, so no
+ * reading taken against it means anything, and the probe would happily report a composited
+ * fiction. --panel it is, which is one of the two grounds the token file actually measures.
+ */
+.rail {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 50;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0;
+  background: var(--panel);
+  border-bottom: 1px solid var(--edge);
 }
 
-.mark {
+/* An h1, because the document needs one and this names it. Not a hero: 11px, letterspaced, one
+   word, and the same weight as every other label on the rail.
+   `margin: 0` is load-bearing. layout-flat.css gives every h1 `margin-bottom: 22px` to sit under
+   an 88px display heading, and inherited here it added twenty-two invisible pixels to the height
+   of a fixed bar that the sticky ruler is positioned against. */
+.rail__mark {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  margin: 0;
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 11px;
-  letter-spacing: 0.42em;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  line-height: 1;
   text-transform: uppercase;
-  color: var(--accent-text);
-  margin-bottom: 30px;
-}
-
-.masthead h1 {
-  font-size: clamp(38px, 8.4vw, 84px);
-  line-height: 0.94;
-  letter-spacing: -0.022em;
-  max-width: 15ch;
-  margin-bottom: 22px;
+  /* --fg, not --accent-text. One accent-coloured word top left is the single loudest thing this
+     composition had in common with the thing it is not supposed to look like. */
   color: var(--fg);
+  padding: 0 16px;
+  border-right: 1px solid var(--edge);
+  white-space: nowrap;
 }
 
-/* The one figure in the headline is set in the mono face at the same size, so the sentence
-   reads as an instrument printing a value rather than as a sentence containing a number. */
-.masthead h1 .fig {
-  font-size: 0.92em;
-  /* Mono figures carry their own sidebearings, and at 84px the gap either side of the decimal
-     point opens up far enough to read as three tokens rather than one number. */
-  letter-spacing: -0.07em;
-  color: var(--accent-text);
-  font-variation-settings: normal;
+/*
+ * The channels wrap, they do not clip, and that is the HUD's lesson applied a second time.
+ *
+ * `overflow: hidden` with `white-space: nowrap` is the tidy-looking version of this strip and it
+ * is wrong: the text that runs past the edge is still laid out there, so the e2e width check
+ * reports an element reaching past a 400px viewport while the screenshot looks immaculate. Every
+ * reading here is therefore short enough to fit whole, and what does not fit moves to the next
+ * row rather than off the end of one.
+ */
+.rail__chans {
+  display: flex;
+  flex-wrap: wrap;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: stretch;
 }
 
-.lede {
-  max-width: 58ch;
-  font-size: clamp(15px, 1.6vw, 17.5px);
-  line-height: 1.5;
+.rail__ch {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 11px 13px;
+  border-right: 1px solid var(--edge);
+  white-space: nowrap;
+}
+
+/* Label, then the thing measured, then the figure, then its unit. Only the figure is --fg: that
+   is what makes the rail scan as three readings instead of as a sentence. */
+.rail__key {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--dim);
+  flex: 0 0 auto;
+}
+
+.rail__who,
+.rail__unit {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
   color: var(--dim);
 }
 
-/* ---- The fact strip ------------------------------------------------------------------ */
-
-/* Four readings, divided by hairlines, and nothing else. A grid rather than flex so the
-   dividers line up whatever the numbers are. At 400px it is one column and the dividers
-   become horizontal, which is the same object seen end-on rather than a different layout. */
-.facts {
-  margin-top: 46px;
-  display: grid;
-  gap: 1px;
-  background: var(--edge);
-  border-block: 1px solid var(--edge);
-  grid-template-columns: 1fr;
+.rail__val {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--fg);
 }
 
-@media (min-width: 640px) {
-  .facts {
-    grid-template-columns: repeat(4, 1fr);
+.palette {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 0 10px 0 12px;
+  margin-left: auto;
+}
+
+@media (max-width: 700px) {
+  /* The nameplate and the palette take the first row and the channels wrap under them. The
+     player's name is the one part of a reading that cannot be made to fit a 400px rail, and it
+     is the one part the page already states twice below, in the selected row and in the readout.
+     So it goes, and the figure, its unit and the rank stay. */
+  .rail__mark {
+    flex: 0 1 auto;
+    padding: 10px 13px;
+    border-right: 0;
+  }
+
+  /* `order` rather than a second markup order. The channel strip takes a whole row, and without
+     this it takes the row BETWEEN the nameplate and the palette, which leaves the palette
+     stranded on a third row of its own with an empty 220px beside it. */
+  .rail__chans {
+    order: 1;
+    flex: 1 0 100%;
+    border-top: 1px solid var(--edge);
+  }
+
+  .rail__ch {
+    padding: 7px 12px;
+  }
+
+  .rail__who {
+    display: none;
   }
 }
 
-.fact {
-  background: var(--bg);
-  padding: 16px 18px 18px;
+/* ---- The tape ------------------------------------------------------------------------ */
+
+/*
+ * The standing readings. Five cells on one line, divided by hairlines, figure first.
+ *
+ * This is where the sentence the page used to shout lives now: "every number below is wrong by
+ * about this much" is the LABEL on the 6.2, not a heading with 6.2 inside it. A label under a
+ * reading is what an instrument does; a sentence in 84px type with one word in the accent is
+ * what a landing page does.
+ *
+ * Grid rather than flex so the dividers line up whatever the figures are. At 400px it becomes
+ * one column and the dividers turn horizontal, which is the same object seen end on rather than
+ * a different layout.
+ */
+.tape {
+  display: grid;
+  gap: 1px;
+  background: var(--edge);
+  border: 1px solid var(--edge);
+  grid-template-columns: 1fr;
 }
 
-.fact b {
+@media (min-width: 620px) {
+  .tape {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1000px) {
+  .tape {
+    /* The lead reading takes half again as much room as the four beside it. */
+    grid-template-columns: 1.5fr repeat(4, 1fr);
+  }
+}
+
+.tape__cell {
+  background: var(--bg);
+  padding: 11px 14px 12px;
+  min-width: 0;
+}
+
+.tape__cell b {
   display: block;
   font-family: var(--font-mono, ui-monospace, monospace);
   font-variant-numeric: tabular-nums;
-  font-size: clamp(19px, 2.4vw, 25px);
+  font-size: clamp(18px, 2.1vw, 23px);
   font-weight: 500;
   letter-spacing: -0.02em;
+  line-height: 1.05;
   color: var(--fg);
-  margin-bottom: 7px;
+  margin-bottom: 6px;
 }
 
-.fact span {
+.tape__cell span {
   display: block;
   font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 9.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--dim);
+  line-height: 1.5;
+}
+
+/* The one reading this project exists because of, so it is set at reading size rather than at
+   label size. It is also the largest thing on the page until a row is selected. */
+.tape__lead b {
+  font-size: clamp(34px, 5vw, 46px);
+  letter-spacing: -0.035em;
+}
+
+/* A reading that got worse is stated in --err rather than in a word. 4.85:1 at worst, and it
+   sits on --bg, which is the ground that pairing is measured against. */
+.tape__cell.worse b {
+  color: var(--err);
+}
+
+/* Below 620 the tape is one column, and a stacked figure and label there costs 75px a cell:
+   five of those is 380px of chrome above a board that is the reason anyone is here. So the four
+   supporting readings lie down, figure left and label right, and only the lead keeps the stacked
+   form its size needs. Same five readings, a third of the height. */
+@media (max-width: 619px) {
+  .tape__cell dd {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: baseline;
+    column-gap: 12px;
+  }
+
+  .tape__cell b {
+    margin-bottom: 0;
+  }
+
+  .tape__lead dd {
+    display: block;
+  }
+
+  .tape__lead b {
+    margin-bottom: 6px;
+  }
+}
+
+/* ---- The channels -------------------------------------------------------------------- */
+
+/*
+ * Four numbered channels, stacked with a hairline between them and a spine down the left
+ * carrying the number and the trace name. Not sections with air between them: the whole point
+ * of the change is that the page reads as one continuous instrument rather than as four pages
+ * of marketing that happen to be scrolled together, so the separator is a rule and the rhythm
+ * is tight.
+ */
+.ch {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  border-top: 1px solid var(--edge);
+  /* The rail is fixed, so an anchor jump or a scrollIntoView lands under it without this. */
+  scroll-margin-top: calc(var(--rail-h) + 10px);
+}
+
+.tape + .ch {
+  border-top: 0;
+  margin-top: 22px;
+}
+
+@media (min-width: 880px) {
+  .ch {
+    grid-template-columns: 74px minmax(0, 1fr);
+  }
+}
+
+/* The spine. On a wide screen it is a vertical rule with the channel number at its head, which
+   is what a chart recorder prints beside a trace. Below 880 it lies down and becomes a single
+   labelled row, because a 74px column on a phone is 20 per cent of the screen spent on two
+   words. */
+.ch__spine {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  padding-block: 14px 10px;
+  border-bottom: 1px solid var(--edge);
+}
+
+@media (min-width: 880px) {
+  .ch__spine {
+    display: block;
+    padding: 20px 14px 26px 0;
+    border-bottom: 0;
+    border-right: 1px solid var(--edge);
+  }
+}
+
+.ch__spine b {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--dim);
+  display: block;
+}
+
+.ch__spine span {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--dim);
+  display: block;
+}
+
+@media (min-width: 880px) {
+  .ch__spine span {
+    margin-top: 6px;
+  }
+}
+
+.ch__body {
+  min-width: 0;
+  padding-block: 16px 34px;
+}
+
+@media (min-width: 880px) {
+  .ch__body {
+    padding: 20px 0 38px 20px;
+  }
+}
+
+/* Heading, note, provenance and stamp on one ruled block. The heading is 14px: see the type
+   rule. The stamp is right aligned where there is room, which is where an instrument prints the
+   run it is reporting on. */
+.ch__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 7px 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--edge) 55%, transparent);
+}
+
+@media (min-width: 780px) {
+  .ch__head {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .ch__head .ch__note {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .ch__head .ch__src {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+}
+
+.ch__head h2 {
+  /* base.css sets h2 to 12px uppercase --dim; layout-flat leaves it alone. Re-set here as a
+     channel title: sentence case, mono, --fg, and small. It is a name for the trace below it,
+     not a billboard, and every reading on this page is set larger than it. */
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--fg);
+  line-height: 1.25;
+}
+
+.ch__note {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--dim);
+  max-width: 84ch;
+}
+
+.ch__src,
+.ch__stamp {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--dim);
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
-/* A reading that got worse is stated in --err rather than in a word. 4.85:1 at worst. */
-.fact.worse b {
-  color: var(--err);
-}
-
-/* ---- Sections ------------------------------------------------------------------------ */
-
-/* layout-flat.css gives .panel a top rule already. This page numbers its sections instead,
-   because a numbered scale is the thing it is imitating. */
-.band {
-  margin-top: 76px;
-}
-
-.band__head {
-  display: grid;
-  gap: 10px 24px;
-  grid-template-columns: 1fr;
-  align-items: baseline;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--edge);
+.ch__stamp {
+  justify-self: start;
 }
 
 @media (min-width: 780px) {
-  .band__head {
-    grid-template-columns: auto 1fr auto;
+  .ch__stamp {
+    justify-self: end;
+    text-align: right;
   }
-}
-
-.band__no {
-  font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 11px;
-  letter-spacing: 0.2em;
-  color: var(--dim);
-}
-
-.band__head h2 {
-  /* base.css sets h2 to 12px uppercase --dim. This page's section titles are the loudest
-     thing after the headline, so they are re-set rather than inherited. */
-  font-family: var(--font-display, inherit);
-  font-size: clamp(21px, 2.8vw, 27px);
-  font-weight: var(--display-weight, 600);
-  letter-spacing: -0.01em;
-  text-transform: none;
-  color: var(--fg);
-  line-height: 1.1;
-}
-
-.band__note {
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--dim);
-  max-width: 62ch;
-  margin-top: 12px;
 }
 
 /* ---- Controls ------------------------------------------------------------------------ */
@@ -228,16 +528,16 @@
 .controls {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 6px;
+  gap: 7px 6px;
   align-items: center;
-  margin-top: 18px;
+  margin-top: 14px;
 }
 
 .controls__group {
   display: flex;
   gap: 0;
   border: 1px solid var(--dim);
-  border-radius: 3px;
+  border-radius: 2px;
   overflow: hidden;
 }
 
@@ -245,11 +545,11 @@
    meter, so they are re-bordered here. One boundary weight, --dim, per the rule at the top. */
 .controls button {
   font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 11px;
+  font-size: 10.5px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  min-height: 34px;
-  padding: 7px 12px;
+  min-height: 32px;
+  padding: 6px 11px;
   margin: 0;
   border: 0;
   border-radius: 0;
@@ -282,7 +582,7 @@
 
 .controls__label {
   font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 10px;
+  font-size: 9.5px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--dim);
@@ -293,19 +593,26 @@
 
 /* Sticky, because a scale you have to scroll away from to read is not a scale. It carries the
    spike gate, which is the one mark on this page that has to stay visible at all times: every
-   filled area below is measured against it. */
+   filled area below is measured against it. It sticks BELOW the rail, not at zero: the rail is
+   fixed and would otherwise cover it, and --rail-h is measured rather than assumed for exactly
+   that reason. */
 .ruler {
   position: sticky;
-  top: 0;
+  /* One pixel under, not exactly at. The rail's real height is fractional and `--rail-h` is the
+     ceiling of it, so sticking flush leaves a sub-pixel band where a row scrolls past between
+     the two: a one pixel strip of moving player names under the rail's own border. Overlapping
+     by a pixel closes it at every zoom level and costs a pixel of the tick labels' padding. */
+  top: calc(var(--rail-h) - 1px);
   z-index: 3;
   background: var(--bg);
   border-bottom: 1px solid var(--edge);
-  padding-block: 9px 0;
+  padding-block: 8px 0;
+  margin-top: 12px;
 }
 
 .ruler__track {
   position: relative;
-  height: 24px;
+  height: 22px;
 }
 
 /*
@@ -334,7 +641,7 @@
 
 .ruler__tick span {
   position: absolute;
-  top: 9px;
+  top: 8px;
   left: 4px;
   font-family: var(--font-mono, ui-monospace, monospace);
   font-variant-numeric: tabular-nums;
@@ -362,7 +669,7 @@
 
 .ruler__gate span {
   position: absolute;
-  top: 9px;
+  top: 8px;
   left: 5px;
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 10px;
@@ -378,9 +685,7 @@
   position: relative;
 }
 
-/* The ink. Behind every row, sized to the whole list, redrawn from the rows' own measured
-   rectangles so the picture cannot drift out of step with the layout. */
-/* ABOVE the rows, not behind them.
+/* The ink. ABOVE the rows, not behind them.
    Behind was the first version and it is wrong for one reason that took a screenshot to see:
    a selected row paints a --panel background, and an opaque background over the canvas erases
    the ridge of the one row the reader is looking at. On top, the row tint sits under the ink
@@ -419,21 +724,24 @@
 
 .row {
   display: grid;
-  grid-template-columns: 22px 1fr auto;
+  grid-template-columns: 20px 1fr auto;
   grid-template-areas: "rail id fig" "rail ink ink";
   column-gap: 10px;
   align-items: center;
-  min-height: 72px;
-  padding-block: 6px;
+  min-height: 66px;
+  padding-block: 5px;
   border-bottom: 1px solid color-mix(in srgb, var(--edge) 55%, transparent);
   cursor: pointer;
+  /* Arrowing down the board calls scrollIntoView({block: "nearest"}), which knows nothing about
+     a fixed rail or a sticky ruler and will happily park the active row underneath both. */
+  scroll-margin-block: calc(var(--rail-h) + 42px) 16px;
 }
 
 @media (min-width: 780px) {
   .row {
-    grid-template-columns: 22px 42px minmax(150px, 210px) 1fr 118px;
+    grid-template-columns: 20px 40px minmax(140px, 200px) 1fr 122px;
     grid-template-areas: "rail rank id ink fig";
-    min-height: 48px;
+    min-height: 44px;
     column-gap: 14px;
   }
 }
@@ -474,8 +782,8 @@
 
 .row__name {
   display: block;
-  font-size: 13.5px;
-  line-height: 1.25;
+  font-size: 13px;
+  line-height: 1.2;
   color: var(--fg);
   white-space: nowrap;
   overflow: hidden;
@@ -485,7 +793,8 @@
 .row__meta {
   display: block;
   font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  font-size: 9.5px;
   letter-spacing: 0.08em;
   color: var(--dim);
   white-space: nowrap;
@@ -495,20 +804,17 @@
 
 /* The lane the ridge is drawn in. Empty on purpose: it exists so the renderer can measure
    where the ink goes, which keeps the picture responsive without the renderer knowing a
-   single breakpoint. */
-/* The lane the ridge is drawn in. Empty on purpose: it exists so the renderer can measure
-   where the ink goes, which keeps the picture responsive without the renderer knowing a
    single breakpoint. Its HEIGHT is the whole vertical budget of a distribution, so it is the
    one number that decides whether the board reads as shapes or as a list of flat lines. */
 .row__ink {
   grid-area: ink;
-  height: 36px;
+  height: 34px;
   min-width: 0;
 }
 
 @media (min-width: 780px) {
   .row__ink {
-    height: 40px;
+    height: 38px;
   }
 }
 
@@ -518,17 +824,21 @@
   white-space: nowrap;
 }
 
+/* The per-row reading. Larger than the player's own name on purpose: the name is the label and
+   the odds are the measurement. */
 .row__spike {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-variant-numeric: tabular-nums;
-  font-size: 15px;
+  font-size: 17px;
+  font-weight: 500;
   color: var(--fg);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 
 .row__spike i {
   font-style: normal;
-  font-size: 10px;
+  font-size: 9.5px;
+  font-weight: 400;
   color: var(--dim);
   margin-left: 1px;
 }
@@ -537,7 +847,7 @@
   display: block;
   font-family: var(--font-mono, ui-monospace, monospace);
   font-variant-numeric: tabular-nums;
-  font-size: 10px;
+  font-size: 9.5px;
   letter-spacing: 0.04em;
   color: var(--dim);
   margin-top: 1px;
@@ -546,51 +856,57 @@
 /* ---- The selected-player readout ----------------------------------------------------- */
 
 .readout {
-  margin-top: 26px;
-  padding-top: 22px;
+  margin-top: 20px;
+  padding-top: 18px;
   border-top: 1px solid var(--edge);
   display: grid;
-  gap: 26px;
+  gap: 22px;
   grid-template-columns: 1fr;
 }
 
 @media (min-width: 860px) {
   .readout {
-    grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
     gap: 40px;
   }
 }
 
+/* The largest thing on the page. Mono, tabular, and it changes on every arrow press, which is
+   the reason it is tabular: proportional figures would make the reading jitter sideways as the
+   reader walks the board. */
 .readout__odds {
-  font-family: var(--font-display, inherit);
-  font-size: clamp(54px, 9vw, 76px);
-  font-weight: var(--display-weight, 600);
-  line-height: 0.9;
-  letter-spacing: -0.03em;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: clamp(56px, 9.5vw, 86px);
+  font-weight: 500;
+  line-height: 0.88;
+  letter-spacing: -0.055em;
   color: var(--fg);
   font-variant-numeric: tabular-nums;
 }
 
 .readout__odds i {
+  display: block;
   font-style: normal;
-  font-size: 0.32em;
+  font-size: 0.13em;
+  font-weight: 400;
   color: var(--dim);
-  letter-spacing: 0;
-  margin-left: 4px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-top: 12px;
 }
 
 .readout__who {
-  font-size: 16px;
+  font-size: 14px;
   color: var(--fg);
-  margin-top: 14px;
+  margin-top: 10px;
 }
 
 .readout__tie {
-  font-size: 13px;
-  line-height: 1.55;
+  font-size: 12.5px;
+  line-height: 1.5;
   color: var(--dim);
-  margin-top: 10px;
-  max-width: 46ch;
+  margin-top: 9px;
+  max-width: 52ch;
 }
 
 /* The reasons. A definition list, because that is what it is: a label, a value and an effect
@@ -603,8 +919,8 @@
 .reason {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 4px 16px;
-  padding-block: 11px;
+  gap: 3px 16px;
+  padding-block: 9px;
   border-top: 1px solid var(--edge);
   align-items: baseline;
 }
@@ -616,7 +932,7 @@
 
 .reason__label {
   font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 10px;
+  font-size: 9.5px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--dim);
@@ -628,7 +944,8 @@
   align-self: center;
   font-family: var(--font-mono, ui-monospace, monospace);
   font-variant-numeric: tabular-nums;
-  font-size: 15px;
+  font-size: 16px;
+  font-weight: 500;
   text-align: right;
   color: var(--fg);
 }
@@ -642,15 +959,16 @@
 }
 
 .reason__basis {
-  font-size: 12px;
-  line-height: 1.45;
+  font-size: 11.5px;
+  line-height: 1.4;
   color: var(--dim);
   grid-column: 1;
 }
 
 .reason__value {
   font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
   color: var(--fg);
 }
 
@@ -660,7 +978,7 @@
    away, which is what every other site in this category ships as its entire product. It is
    here so a reader can see exactly what is lost. */
 .numbers {
-  margin-top: 24px;
+  margin-top: 20px;
   overflow-x: auto;
 }
 
@@ -676,21 +994,31 @@
 
 .numbers--narrow th,
 .numbers--narrow td {
-  padding-right: 26px;
+  padding-right: 24px;
 }
 
 .numbers caption {
   text-align: left;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--dim);
-  padding-bottom: 12px;
-  max-width: 62ch;
+  padding-bottom: 10px;
+  max-width: 74ch;
   line-height: 1.5;
+}
+
+.numbers table {
+  font-size: 12.5px;
 }
 
 .numbers th,
 .numbers td {
-  padding: 7px 10px 7px 0;
+  padding: 5px 10px 5px 0;
+}
+
+.numbers th {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
 }
 
 .numbers td {
@@ -710,21 +1038,21 @@
 
 .sim {
   display: grid;
-  gap: 30px;
+  gap: 26px;
   grid-template-columns: 1fr;
-  margin-top: 26px;
+  margin-top: 20px;
 }
 
 @media (min-width: 900px) {
   .sim {
-    grid-template-columns: minmax(230px, 290px) minmax(0, 1fr);
-    gap: 40px;
+    grid-template-columns: minmax(210px, 260px) minmax(0, 1fr);
+    gap: 34px;
   }
 }
 
 .lineups {
   display: grid;
-  gap: 24px;
+  gap: 20px;
   grid-template-columns: 1fr 1fr;
 }
 
@@ -736,7 +1064,7 @@
 
 .lineup h3 {
   font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 500;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -754,9 +1082,9 @@
 .lineup__total {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-variant-numeric: tabular-nums;
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--dim);
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   display: block;
 }
 
@@ -767,10 +1095,10 @@
 
 .slot select {
   font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 11.5px;
+  font-size: 11px;
   width: 100%;
-  min-height: 36px;
-  padding: 6px 2px;
+  min-height: 34px;
+  padding: 5px 2px;
   border: 0;
   border-radius: 0;
   background: none;
@@ -786,10 +1114,10 @@
 }
 
 .sim__run {
-  margin-top: 22px;
+  margin-top: 18px;
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
 }
 
@@ -798,11 +1126,11 @@
    lightened hover. Hover moves the fill, not the text. */
 .sim__run button.primary {
   font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 11px;
+  font-size: 10.5px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  min-height: 40px;
-  padding: 11px 22px;
+  min-height: 38px;
+  padding: 10px 20px;
 }
 
 .sim__run button.primary:focus-visible {
@@ -816,7 +1144,7 @@
    vertically, and that is the reading the whole plot is for. */
 .sim__panels {
   display: grid;
-  gap: 22px;
+  gap: 18px;
   grid-template-columns: 1fr;
   min-width: 0;
 }
@@ -825,7 +1153,7 @@
   .sim__panels {
     grid-template-columns: minmax(0, 1.02fr) minmax(0, 1fr);
     grid-template-rows: auto auto;
-    column-gap: 30px;
+    column-gap: 26px;
   }
 
   .sim__panels > [data-plot="cloud"] {
@@ -843,9 +1171,9 @@
   justify-content: space-between;
   align-items: baseline;
   gap: 2px 14px;
-  padding-bottom: 7px;
+  padding-bottom: 6px;
   border-bottom: 1px solid var(--edge);
-  margin-bottom: 9px;
+  margin-bottom: 8px;
 }
 
 .plot__val {
@@ -875,22 +1203,22 @@
 .plot__axis span {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-variant-numeric: tabular-nums;
-  font-size: 10px;
+  font-size: 9.5px;
   letter-spacing: 0.06em;
   color: var(--dim);
 }
 
-/* The verdict. The biggest figure on the page after the headline, and it never appears without
-   the interval beside it, which is `format.ts`'s job to enforce. */
-/* Two columns where there is room: the figure and the sentence on the left, and the same run
+/* The verdict. The second largest reading on the page, and it never appears without the
+   interval beside it, which is `format.ts`'s job to enforce.
+   Two columns where there is room: the figure and the sentence on the left, and the same run
    said four more ways on the right. A win probability alone cannot say whether the losses are
    narrow or catastrophic, and that is what a lineup decision actually turns on. */
 .verdict {
-  margin-top: 26px;
-  padding-top: 22px;
+  margin-top: 22px;
+  padding-top: 18px;
   border-top: 1px solid var(--edge);
   display: grid;
-  gap: 28px;
+  gap: 24px;
   grid-template-columns: 1fr;
   align-items: start;
 }
@@ -898,7 +1226,7 @@
 @media (min-width: 860px) {
   .verdict {
     grid-template-columns: minmax(0, 1fr) minmax(0, 380px);
-    gap: 48px;
+    gap: 44px;
   }
 }
 
@@ -912,16 +1240,18 @@
 
 .verdict__fig {
   background: var(--bg);
-  padding: 13px 14px 14px;
+  padding: 11px 13px 12px;
 }
 
 .verdict__fig b {
   display: block;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
   font-size: 21px;
   font-weight: 500;
   letter-spacing: -0.02em;
   color: var(--fg);
-  margin-bottom: 5px;
+  margin-bottom: 4px;
 }
 
 .verdict__fig span {
@@ -938,69 +1268,73 @@
    sentence length is slower to read than the thing it is annotating. */
 .verdict__meta {
   font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-size: 10.5px;
   color: var(--dim);
-  margin-top: 12px;
+  margin-top: 10px;
 }
 
 /* Scoped to the class, not to every b inside .verdict. Unscoped, it also caught the four
    summary figures beside it and set them at sixty-two pixels each. */
 .verdict__odds {
   display: block;
-  font-family: var(--font-display, inherit);
-  font-size: clamp(40px, 7vw, 62px);
-  font-weight: var(--display-weight, 600);
-  line-height: 0.95;
-  letter-spacing: -0.03em;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: clamp(44px, 7.4vw, 68px);
+  font-weight: 500;
+  line-height: 0.92;
+  letter-spacing: -0.055em;
   color: var(--fg);
   font-variant-numeric: tabular-nums;
 }
 
 .verdict__odds i {
+  display: block;
   font-style: normal;
-  font-size: 0.3em;
+  font-size: 0.16em;
+  font-weight: 400;
   color: var(--dim);
-  letter-spacing: 0;
-  margin-left: 6px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-top: 10px;
 }
 
 .verdict p {
-  font-size: 13.5px;
-  line-height: 1.55;
+  font-size: 12.5px;
+  line-height: 1.5;
   color: var(--dim);
-  margin-top: 12px;
-  max-width: 56ch;
+  margin-top: 10px;
+  max-width: 58ch;
 }
 
 /* ---- Regression ---------------------------------------------------------------------- */
 
 .regress {
-  margin-top: 24px;
+  margin-top: 18px;
 }
 
 .regress__row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 4px 16px;
+  gap: 3px 16px;
   align-items: center;
-  padding-block: 12px;
+  padding-block: 9px;
   border-bottom: 1px solid color-mix(in srgb, var(--edge) 55%, transparent);
 }
 
 @media (min-width: 720px) {
   .regress__row {
-    grid-template-columns: minmax(150px, 220px) minmax(0, 1fr) 92px;
+    grid-template-columns: minmax(140px, 210px) minmax(0, 1fr) 96px;
   }
 }
 
 .regress__who {
-  font-size: 13.5px;
+  font-size: 13px;
   color: var(--fg);
 }
 
 .regress__who span {
   font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 10px;
+  font-size: 9.5px;
   letter-spacing: 0.08em;
   color: var(--dim);
   margin-left: 7px;
@@ -1008,7 +1342,7 @@
 
 .regress__bar {
   position: relative;
-  height: 16px;
+  height: 14px;
   min-width: 0;
 }
 
@@ -1040,40 +1374,44 @@
 .regress__val {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-variant-numeric: tabular-nums;
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 500;
   text-align: right;
   color: var(--fg);
 }
 
 .regress__val span {
   display: block;
-  font-size: 10px;
+  font-size: 9.5px;
+  font-weight: 400;
   color: var(--dim);
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 /* ---- Scorecard ----------------------------------------------------------------------- */
 
 .grade {
   display: grid;
-  gap: 30px;
+  gap: 26px;
   grid-template-columns: 1fr;
-  margin-top: 26px;
+  margin-top: 20px;
   align-items: start;
 }
 
 @media (min-width: 820px) {
   .grade {
     grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
-    gap: 44px;
+    gap: 40px;
   }
 }
 
 .grade__note {
-  font-size: 13.5px;
-  line-height: 1.6;
+  font-size: 12.5px;
+  line-height: 1.55;
   color: var(--dim);
-  max-width: 56ch;
+  max-width: 58ch;
+  margin-top: 10px;
 }
 
 .grade__note strong {
@@ -1092,7 +1430,7 @@
  * div. `pointer-events: none` here hands every event straight through, and the one child that
  * genuinely needs to be hit opts back in.
  *
- * `test/ui/overlay.test.ts` fails if this declaration is removed, and `e2e/interaction.mjs`
+ * `test/ui/guards.test.ts` fails if this declaration is removed, and `e2e/interaction.mjs`
  * checks it the only way that is real, by asking the browser what is actually on top of the
  * board.
  */
@@ -1124,7 +1462,7 @@
 }
 
 .gauge__cell {
-  padding: 6px 12px;
+  padding: 5px 11px;
   border-left: 1px solid var(--edge);
   white-space: nowrap;
 }
@@ -1145,14 +1483,14 @@
 .gauge__cell b {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-variant-numeric: tabular-nums;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 500;
   color: var(--fg);
 }
 
 .gauge__cell span {
   font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 9.5px;
+  font-size: 9px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--dim);
@@ -1161,31 +1499,20 @@
 
 /* ---- Palette picker ------------------------------------------------------------------ */
 
-.palette {
-  position: absolute;
-  top: 18px;
-  right: 20px;
-  z-index: 5;
-}
-
-@media (min-width: 720px) {
-  .palette {
-    right: 34px;
-  }
-}
-
 .palette select {
   font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 10.5px;
-  letter-spacing: 0.08em;
-  min-height: 34px;
-  padding: 6px 8px;
-  background: var(--bg);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  min-height: 28px;
+  padding: 4px 6px;
+  max-width: 150px;
+  background: var(--panel);
   color: var(--dim);
   /* A control's boundary needs 3:1 and --edge-strong reaches exactly 3.00 on --bg with nothing
-     to spare. --dim is past 4.8 on every palette. */
+     to spare, and only 2.74 on --panel, which is the surface the rail paints. --dim is past 4.8
+     on every palette against both. */
   border: 1px solid var(--dim);
-  border-radius: 3px;
+  border-radius: 2px;
   cursor: pointer;
 }
 
@@ -1196,22 +1523,25 @@
 
 /* ---- Skip link ----------------------------------------------------------------------- */
 
+/* Fixed rather than absolute. Absolute positions it against the document, so focusing it after
+   any scroll put it somewhere off screen, which is a skip link that is reachable and invisible.
+   It lands under the rail, which is the only thing above it in the stack. */
 .skip {
-  position: absolute;
+  position: fixed;
   left: -9999px;
   top: 0;
   z-index: 60;
   background: var(--panel);
   color: var(--fg);
-  padding: 11px 15px;
+  padding: 10px 14px;
   border: 1px solid var(--dim);
-  border-radius: 3px;
+  border-radius: 2px;
   font-size: 13px;
 }
 
 .skip:focus {
-  left: 16px;
-  top: 16px;
+  left: 14px;
+  top: calc(var(--rail-h) + 10px);
   outline: 2px solid var(--accent-text);
   outline-offset: 2px;
 }
@@ -1219,13 +1549,13 @@
 /* ---- Footer -------------------------------------------------------------------------- */
 
 .colophon {
-  margin-top: 78px;
-  padding-top: 22px;
+  margin-top: 0;
+  padding-top: 18px;
   border-top: 1px solid var(--edge);
-  font-size: 12.5px;
-  line-height: 1.7;
+  font-size: 11.5px;
+  line-height: 1.65;
   color: var(--dim);
-  max-width: 68ch;
+  max-width: 80ch;
 }
 
 /* ---- Reduced motion ------------------------------------------------------------------ */
@@ -1248,7 +1578,7 @@
   gap: 1px;
   background: var(--edge);
   border: 1px solid var(--edge);
-  margin-top: 18px;
+  margin-top: 16px;
 }
 
 @media (min-width: 700px) {
@@ -1259,7 +1589,7 @@
 
 .ladder__cell {
   background: var(--bg);
-  padding: 12px 12px 14px;
+  padding: 11px 11px 13px;
   min-width: 0;
 }
 
@@ -1267,7 +1597,7 @@
   display: block;
   width: 100%;
   pointer-events: none;
-  margin-bottom: 9px;
+  margin-bottom: 8px;
 }
 
 /* nowrap, because "1,000 runs" wrapping while "100 runs" does not puts the four figures
@@ -1275,7 +1605,7 @@
 .ladder__n {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-variant-numeric: tabular-nums;
-  font-size: 10px;
+  font-size: 9.5px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--dim);
@@ -1286,7 +1616,8 @@
 .ladder__p {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-variant-numeric: tabular-nums;
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 500;
   color: var(--fg);
   display: block;
   margin-top: 3px;
