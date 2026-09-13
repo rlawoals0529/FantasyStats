@@ -13,3 +13,20 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      # Playwright is installed here only. It is 300 MB of browsers for a handful of scripts
+      # and every contributor would pay for it on install.
+      - run: npm i --no-save playwright@1.63.0 && npx playwright install --with-deps chromium
+      - run: npm run build
+      - run: PLAYWRIGHT_MODULE=$PWD/node_modules/playwright/index.mjs node e2e/contrast-sweep.mjs
+      - run: PLAYWRIGHT_MODULE=$PWD/node_modules/playwright/index.mjs node e2e/interaction.mjs
+      # A probe that has quietly stopped measuring reports a clean sweep forever, which looks
+      # exactly like a clean page. This requires the planted failure to be caught.
+      - run: "! PLAYWRIGHT_MODULE=$PWD/node_modules/playwright/index.mjs node e2e/contrast-sweep.mjs --self-test"

@@ -166,7 +166,7 @@ export function mountBoard(root: HTMLElement, week: WeekBoard, onPaint: (ms: num
         const spoken =
           `Rank ${range.rank} of ${view.length}. ` +
           `${player.name}, ${POSITION_WORD[player.position]}, ${player.team}` +
-          `${player.opponent ? ` against ${player.opponent}` : ", on a bye"}. ` +
+          `${player.opponent ? ` against ${player.opponent}` : ""}. ` +
           `${fmt.inHundred(o.spike)} chance of ${SPIKE_POINTS} points or more. ` +
           `Median ${fmt.points(o.p50)}, tenth percentile ${fmt.points(o.p10)}, ` +
           `ninetieth ${fmt.points(o.p90)}. ` +
@@ -193,7 +193,7 @@ export function mountBoard(root: HTMLElement, week: WeekBoard, onPaint: (ms: num
               el("span", {
                 class: "row__meta",
                 "aria-hidden": "true",
-                text: `${player.position} ${player.team}${player.opponent ? ` v ${player.opponent}` : " bye"}`,
+                text: `${player.position} ${player.team}${player.opponent ? ` v ${player.opponent}` : ""}`,
               }),
             ]),
             el("span", { class: "row__ink", "aria-hidden": "true" }),

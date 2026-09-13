@@ -33,7 +33,12 @@ import type { Wiring } from "./ports.ts";
 
 // ---- The two lines the other slices replace. ----------------------------------------------
 import { fixtureBoard, fixtureData, fixtureSimulator } from "./fixtures/generate.ts";
-const wiring: Wiring = { data: fixtureData(), simulate: fixtureSimulator(fixtureBoard()) };
+import { liveData } from "./live.ts";
+
+// The real board, with the fixture as a named fallback rather than the default. See live.ts for
+// why a silent fallback would be the worst outcome available here.
+const live = liveData("data/board.json", () => fixtureBoard());
+const wiring: Wiring = { data: live, simulate: fixtureSimulator(fixtureBoard()) };
 // -------------------------------------------------------------------------------------------
 
 const boardMeter = new FrameMeter(120);
@@ -83,6 +88,18 @@ async function boot(): Promise<void> {
   }
 
   const board = mountBoard(boardSection, week, (ms) => boardMeter.push(ms));
+  // The heading names the week the board is actually for. It was a constant from the fixture
+  // era and read "Week 7" over a week 18 board, which is the same class of error as the bye:
+  // the page stating something it had not been told.
+  const title = document.getElementById("board-title");
+  if (title) title.textContent = "Week " + week.week + ", as shapes";
+  const src = (wiring.data as { lastResult?: () => { live: boolean; note: string } | null }).lastResult?.();
+  const note = document.getElementById("board-source");
+  if (note && src) {
+    note.textContent = src.note;
+    note.dataset["live"] = String(src.live);
+  }
+
   const weekPanel = mountWeek(weekSection, week, wiring.simulate, simMeter);
   mountRegression(need<HTMLElement>(document, ".regress"), week);
 

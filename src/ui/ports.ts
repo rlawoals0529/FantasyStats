@@ -57,7 +57,14 @@ export type PlayerEntry = {
   readonly name: string;
   readonly position: Position;
   readonly team: string;
-  /** Who they play this week, for the header line. `null` on a bye. */
+  /**
+   * Who they play this week, for the header line.
+   *
+   * `null` means the producer does not carry it, NOT that the player is on a bye. It read as
+   * "bye" on every row of the first real board, which was the page asserting something false
+   * about forty-eight players at once. A bye needs its own representation before it can be
+   * claimed, and nothing produces one yet.
+   */
   readonly opponent: string | null;
   /**
    * Probability density over `POINTS_GRID`, length `GRID_SIZE`, integrating to 1 across it.
