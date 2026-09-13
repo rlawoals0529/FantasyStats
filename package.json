@@ -1,0 +1,13 @@
+{
+  "name": "spike",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "refresh": "node --experimental-strip-types scripts/refresh.ts",
+    "backtest": "node --experimental-strip-types scripts/backtest.ts"
+  }
+}
