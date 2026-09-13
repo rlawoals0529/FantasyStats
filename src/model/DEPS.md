@@ -22,16 +22,16 @@ What that means in practice, and where to look if any of it ever needs replacing
 
 ## Toolchain
 
-Not imported by the model, but needed to run what is here. None of these is currently declared
-in `package.json`, so a fresh checkout has to install them before `npm test` or `npm run
-backtest` will work:
+Not imported by the model, but needed to run what is here. All four are declared in
+`package.json` by the slice that owns it; the versions below are what this code was verified
+against:
 
-| Package | Version used | What breaks without it |
+| Package | Verified against | What breaks without it |
 |---|---|---|
-| `typescript` | 5.x | `npm run typecheck` |
-| `vitest` | 2.x or later | `npm test` |
-| `vite` | 5.x | `tsconfig.json` lists `vite/client` in `types` |
-| `@types/node` | any current | `scripts/backtest.ts` reads a file and reads `process.argv`; arrives transitively with vitest |
+| `typescript` | 7.0.2 | `npm run typecheck` |
+| `vitest` | 5.0.0 | `npm test` |
+| `vite` | 8.3.0 | `tsconfig.json` lists `vite/client` in `types` |
+| `@types/node` | 22.x | `scripts/backtest.ts` reads a file and reads `process.argv` |
 
 ## Two conventions worth knowing before editing
 

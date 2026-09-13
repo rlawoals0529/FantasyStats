@@ -309,6 +309,11 @@ function main(argv: readonly string[]): void {
     lines("  tables are computed correctly. It says NOTHING about how this model does on football.");
     lines("  Pass --data <file.json> with { weeks, touchdowns, kickoffs } for that.");
     lines("");
+    lines("  Read the POINT ESTIMATE table below with that in mind in particular: the injury and");
+    lines("  Vegas effects the model applies are built into this league's truth, so beating the");
+    lines("  baseline here is the harness agreeing with itself. The measured result on four real");
+    lines("  seasons is that the baseline wins.");
+    lines("");
     lines(`  ${league.weeks.length} player-weeks, implied totals spanning the measured Vegas range`);
     lines(`  of ${IMPLIED_TOTAL_LOW.total} to ${IMPLIED_TOTAL_HIGH.total} points.`);
   }
